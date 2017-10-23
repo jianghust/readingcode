@@ -9,11 +9,16 @@
 #include <ngx_core.h>
 
 
+/*
+ * nginx共享内存有3种实现（不映射文件使用mmap分配共享内存、以/dev/zero文件使用mmap映射共享内存、用shmget(system-v标准)调用来分配共享内存）
+ */
 #if (NGX_HAVE_MAP_ANON)
 
+//共享内存申请
 ngx_int_t
 ngx_shm_alloc(ngx_shm_t *shm)
 {
+	//开辟一块shm->size大小且可读写的共享内存，内存首地址放在addr中
     shm->addr = (u_char *) mmap(NULL, shm->size,
                                 PROT_READ|PROT_WRITE,
                                 MAP_ANON|MAP_SHARED, -1, 0);
@@ -27,7 +32,7 @@ ngx_shm_alloc(ngx_shm_t *shm)
     return NGX_OK;
 }
 
-
+//共享内存释放
 void
 ngx_shm_free(ngx_shm_t *shm)
 {
