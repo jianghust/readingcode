@@ -201,17 +201,21 @@ main(int argc, char *const *argv)
     ngx_conf_dump_t  *cd;
     ngx_core_conf_t  *ccf;
 
+	//调试相关，不同操作系统定义不一样
     ngx_debug_init();
 
+	//标准错误输出初始化
     if (ngx_strerror_init() != NGX_OK) {
         return 1;
     }
 
+	//解析启动时候的参数
     if (ngx_get_options(argc, argv) != NGX_OK) {
         return 1;
     }
 
     if (ngx_show_version) {
+		//-v时候显示的信息
         ngx_show_version_info();
 
         if (!ngx_test_config) {
@@ -221,14 +225,19 @@ main(int argc, char *const *argv)
 
     /* TODO */ ngx_max_sockets = -1;
 
+	//各类时间的初始化
     ngx_time_init();
 
 #if (NGX_PCRE)
+	//正则相关初始化
     ngx_regex_init();
 #endif
 
     ngx_pid = ngx_getpid();
 
+	/*
+	 *主进程启动的时候，此时还没有读取配置文件，即没有指定日志打印在哪里。nginx这时候虽然可以将一些出错内容或者结果输到标准输出，但是如果要记录一些系统初始化情况, socket监听状况，还是需要写到日志文件中去的。在nginx的main函数中，首先会调用ngx_log_init 函数，默认日志文件为：安装路径/logs/error.log，如果这个文件没有权限访问的话,会直接报错退出。在mian函数结尾处，在ngx_master_process_cycle函数调用之前，会close掉这个日志文件。
+	 **/
     log = ngx_log_init(ngx_prefix);
     if (log == NULL) {
         return 1;
@@ -236,6 +245,7 @@ main(int argc, char *const *argv)
 
     /* STUB */
 #if (NGX_OPENSSL)
+	//ssl相关的初始化
     ngx_ssl_init(log);
 #endif
 
@@ -244,6 +254,7 @@ main(int argc, char *const *argv)
      * ngx_process_options()
      */
 
+	//调用memset对结构体进行初始化
     ngx_memzero(&init_cycle, sizeof(ngx_cycle_t));
     init_cycle.log = log;
     ngx_cycle = &init_cycle;
@@ -441,6 +452,10 @@ ngx_show_version_info(void)
 }
 
 
+/**
+ * 在执行不重启服务升级nginx的操作下，老的nginx进程会通过环境变量"NGINX"来传递需要打开的监听端口，新的Nginx进程会通过ngx_add_inherited_sockets方法来使用已经打开的TCP监听端口
+ * cycle 当前进程的ngx_cycle_t结构体
+ */
 static ngx_int_t
 ngx_add_inherited_sockets(ngx_cycle_t *cycle)
 {
@@ -901,6 +916,10 @@ ngx_save_argv(ngx_cycle_t *cycle, int argc, char *const *argv)
 }
 
 
+/**
+ * 用于运行nginx时可能携带的目录参数来初始化cycle，包括初始化运行目录，配置目录，并生成完整的nginx.conf配置文件路径
+ * cycle 通常是刚刚分配的ngx_cycle_t结构体指针，仅用来传递配置文件路径信息
+ */
 static ngx_int_t
 ngx_process_options(ngx_cycle_t *cycle)
 {

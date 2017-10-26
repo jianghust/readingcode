@@ -256,10 +256,13 @@ struct ngx_module_s {
     uintptr_t             spare_hook7;
 };
 
-
+//核心模块数据结构，目前官方共有6个核心类型的具体模块:ngx_core_module、ngx_errlog_module、ngx_events_module、ngx_openssl_module、ngx_http_module、ngx_mail_module
 typedef struct {
+	//核心模块名称
     ngx_str_t             name;
+	//解析配置项前，nginx框架会调用create_conf方法
     void               *(*create_conf)(ngx_cycle_t *cycle);
+	//解析配置完成后，nginx框架会调用init_conf方法
     char               *(*init_conf)(ngx_cycle_t *cycle, void *conf);
 } ngx_core_module_t;
 

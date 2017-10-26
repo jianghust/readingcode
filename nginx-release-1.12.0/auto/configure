@@ -7,23 +7,30 @@
 LC_ALL=C
 export LC_ALL
 
+#处理configure命令的参数，定义后续工作需要使用到的变量，然后根据本次参数以及默认值来设置这些变量
 . auto/options
+#初始化后续将产生文件的路径
 . auto/init
+#分析nginx的源码结构，构造后续的Makefile文件
 . auto/sources
 
+#创建编译目标文件目录
 test -d $NGX_OBJS || mkdir -p $NGX_OBJS
 
+#准备建立编译文件
 echo > $NGX_AUTO_HEADERS_H
 echo > $NGX_AUTOCONF_ERR
 
+#向 objs/ngx_auto_config.h写入命令行带的参数
 echo "#define NGX_CONFIGURE \"$NGX_CONFIGURE\"" > $NGX_AUTO_CONFIG_H
 
-
+#判断debug标识，如果有，那么在objs/ngx_auto_config.h文件中写入DEBUG宏
 if [ $NGX_DEBUG = YES ]; then
     have=NGX_DEBUG . auto/have
 fi
 
 
+#检查操作系统参数是否支持后续编译操作
 if test -z "$NGX_PLATFORM"; then
     echo "checking for OS"
 
@@ -45,23 +52,28 @@ else
     echo "building for $NGX_PLATFORM"
     NGX_SYSTEM=$NGX_PLATFORM
 fi
-
+#检查并设置编译器，例如GCC是否安装，GCC版本是否支持后续的编译
 . auto/cc/conf
 
+#针对非windows系统定义一些必要的头文件，并检查是否存在
 if [ "$NGX_PLATFORM" != win32 ]; then
     . auto/headers
 fi
-
+#对于当前操作系统，定义一些特定的操作系统相关的方法并检查当前环境是否支持.
 . auto/os/conf
 
+#定义类UNIX操作系统中通用的头文件和系统调用等，并检查当前环境是否支持
 if [ "$NGX_PLATFORM" != win32 ]; then
     . auto/unix
 fi
-
+#UNIX下的多线程相关支持
 . auto/threads
+#构造运行期modules，会生成ngx_modules.c文件，这个文件会编译进nginx模块中，其中它所做的唯一事情就是定义了ngx_modules数组，ngx_module指定了nginx运行期间哪些模块会参与到请求的处理中，包括HTTP请求可能会使用哪些模块处理
 . auto/modules
+#检查nginx在链接期间需要链接的第三方静态库，动态库或者目标文件是否存在
 . auto/lib/conf
 
+#处理nginx的安装路径
 case ".$NGX_PREFIX" in
     .)
         NGX_PREFIX=${NGX_PREFIX:-/usr/local/nginx}
@@ -77,10 +89,11 @@ case ".$NGX_PREFIX" in
     ;;
 esac
 
+#处理nginx安装完成后conf文件的路径
 if [ ".$NGX_CONF_PREFIX" != "." ]; then
     have=NGX_CONF_PREFIX value="\"$NGX_CONF_PREFIX/\"" . auto/define
 fi
-
+#nginx安装后，二进制，pid，lock等其他文件的路径
 have=NGX_SBIN_PATH value="\"$NGX_SBIN_PATH\"" . auto/define
 have=NGX_CONF_PATH value="\"$NGX_CONF_PATH\"" . auto/define
 have=NGX_PID_PATH value="\"$NGX_PID_PATH\"" . auto/define
@@ -99,11 +112,15 @@ have=NGX_HTTP_UWSGI_TEMP_PATH value="\"$NGX_HTTP_UWSGI_TEMP_PATH\""
 have=NGX_HTTP_SCGI_TEMP_PATH value="\"$NGX_HTTP_SCGI_TEMP_PATH\""
 . auto/define
 
+#创建编译时使用的objs/Makefile文件
 . auto/make
+#为objs/Makefile加入需要链接的第三方静态库，动态库或者目标文件
 . auto/lib/make
+#为objs/Makefile加入install功能
 . auto/install
 
 # STUB
+# 在ngx_auto_config.h文件中加入NGX_SUPPRESS_WARN宏、NGX_SMP宏
 . auto/stubs
 
 have=NGX_USER value="\"$NGX_USER\"" . auto/define
@@ -113,4 +130,5 @@ if [ ".$NGX_BUILD" != "." ]; then
     have=NGX_BUILD value="\"$NGX_BUILD\"" . auto/define
 fi
 
+#显示configure执行的结果，如果失败，给出原因
 . auto/summary

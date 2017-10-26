@@ -377,6 +377,9 @@ ngx_set_inherited_sockets(ngx_cycle_t *cycle)
 }
 
 
+/**
+ * 监听，绑定cycle中listening动态数组指定的相应端口
+ */
 ngx_int_t
 ngx_open_listening_sockets(ngx_cycle_t *cycle)
 {
@@ -646,6 +649,10 @@ ngx_open_listening_sockets(ngx_cycle_t *cycle)
 }
 
 
+/**
+ * 根据nginx.conf中的配置项设置已经监听的句柄
+ *
+ */
 void
 ngx_configure_listening_sockets(ngx_cycle_t *cycle)
 {
@@ -953,7 +960,9 @@ ngx_configure_listening_sockets(ngx_cycle_t *cycle)
     return;
 }
 
-
+/**
+ * 关闭cycle中listening动态数组已经打开的句柄
+ */
 void
 ngx_close_listening_sockets(ngx_cycle_t *cycle)
 {

@@ -52,8 +52,10 @@ typedef struct {
     size_t                     len;
     size_t                     level[NGX_MAX_PATH_LEVEL];
 
+	//是否启动cache manager进程
     ngx_path_manager_pt        manager;
     ngx_path_purger_pt         purger;
+	//是否启动cache loader进程
     ngx_path_loader_pt         loader;
     void                      *data;
 

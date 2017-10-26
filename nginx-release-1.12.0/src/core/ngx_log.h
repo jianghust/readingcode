@@ -12,7 +12,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 
-
+//日志的9个等级
 #define NGX_LOG_STDERR            0
 #define NGX_LOG_EMERG             1
 #define NGX_LOG_ALERT             2
@@ -48,17 +48,22 @@ typedef void (*ngx_log_writer_pt) (ngx_log_t *log, ngx_uint_t level,
 
 
 struct ngx_log_s {
+	//日志级别，有define:0~8的值和对应的string数组
     ngx_uint_t           log_level;
+	//日志文件，结构内有文件标志fd和文件名name
     ngx_open_file_t     *file;
-
+	//原子单元链接，定义为整形变量（与平台有关）
     ngx_atomic_uint_t    connection;
-
+	//写入full filesystem时间，代码中经常与ngx_time()比较
     time_t               disk_full_time;
 
+	//日志处理器
     ngx_log_handler_pt   handler;
+	//日志数据
     void                *data;
-
+	//日志写入函数
     ngx_log_writer_pt    writer;
+	//日志内容
     void                *wdata;
 
     /*
@@ -66,9 +71,9 @@ struct ngx_log_s {
      * the static strings and in the "u_char *" case we have to override
      * their types all the time
      */
-
+	//日志操作
     char                *action;
-
+	//下一个日志指针
     ngx_log_t           *next;
 };
 

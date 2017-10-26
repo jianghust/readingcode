@@ -69,6 +69,7 @@ static ngx_log_t        ngx_exit_log;
 static ngx_open_file_t  ngx_exit_log_file;
 
 
+//进入主进程的工作循环
 void
 ngx_master_process_cycle(ngx_cycle_t *cycle)
 {
@@ -284,6 +285,7 @@ ngx_master_process_cycle(ngx_cycle_t *cycle)
 }
 
 
+//进入单进程模式(非master，worker进程工作模式)的工作循环
 void
 ngx_single_process_cycle(ngx_cycle_t *cycle)
 {
@@ -340,7 +342,18 @@ ngx_single_process_cycle(ngx_cycle_t *cycle)
     }
 }
 
-
+/*
+ * 启动n个worker子进程，并设置好每个子进程与父进程之间使用socketpair系统调用建立起来的socket句柄通信机制
+ * cycle 当前进程的结构体指针
+ * n 启动子进程的个数
+ * type 启动方式，取值范围有5个
+ *		NGX_PROCESS_NORESPAWN     -1
+ *  	NGX_PROCESS_JUST_SPAWN    -2
+ *  	NGX_PROCESS_RESPAWN       -3
+ *  	NGX_PROCESS_JUST_RESPAWN  -4
+ *  	NGX_PROCESS_DETACHED      -5
+ *  type将会影响ngx_process_t结构体的respawn、detached、just_spawn标志位的值
+ */
 static void
 ngx_start_worker_processes(ngx_cycle_t *cycle, ngx_int_t n, ngx_int_t type)
 {
@@ -366,7 +379,9 @@ ngx_start_worker_processes(ngx_cycle_t *cycle, ngx_int_t n, ngx_int_t type)
     }
 }
 
-
+/**
+ * 启动文件缓存模块，也就是cycle中存储路径的动态数组中管是否有路径的manage标识打开，来决定是否启动cache manage子进程，同样根据loader标识决定是否启动cache loader子进程
+ */
 static void
 ngx_start_cache_manager_processes(ngx_cycle_t *cycle, ngx_uint_t respawn)
 {
