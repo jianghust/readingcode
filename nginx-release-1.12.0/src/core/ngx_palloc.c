@@ -14,12 +14,14 @@ static ngx_inline void *ngx_palloc_small(ngx_pool_t *pool, size_t size,
 static void *ngx_palloc_block(ngx_pool_t *pool, size_t size);
 static void *ngx_palloc_large(ngx_pool_t *pool, size_t size);
 
-
+/**
+ * 初始化内存池
+ */
 ngx_pool_t *
 ngx_create_pool(size_t size, ngx_log_t *log)
 {
     ngx_pool_t  *p;
-
+	//内存对齐
     p = ngx_memalign(NGX_POOL_ALIGNMENT, size, log);
     if (p == NULL) {
         return NULL;
@@ -42,14 +44,16 @@ ngx_create_pool(size_t size, ngx_log_t *log)
     return p;
 }
 
-
+/**
+ * 内存池销毁
+ */
 void
 ngx_destroy_pool(ngx_pool_t *pool)
 {
     ngx_pool_t          *p, *n;
     ngx_pool_large_t    *l;
     ngx_pool_cleanup_t  *c;
-
+	//处理ngx_pool_cleanup_t的自定义的销毁函数
     for (c = pool->cleanup; c; c = c->next) {
         if (c->handler) {
             ngx_log_debug1(NGX_LOG_DEBUG_ALLOC, pool->log, 0,
@@ -64,7 +68,6 @@ ngx_destroy_pool(ngx_pool_t *pool)
      * we could allocate the pool->log from this pool
      * so we cannot use this log while free()ing the pool
      */
-
     for (l = pool->large; l; l = l->next) {
         ngx_log_debug1(NGX_LOG_DEBUG_ALLOC, pool->log, 0, "free: %p", l->alloc);
     }
@@ -80,12 +83,13 @@ ngx_destroy_pool(ngx_pool_t *pool)
 
 #endif
 
+	//释放分配large
     for (l = pool->large; l; l = l->next) {
         if (l->alloc) {
             ngx_free(l->alloc);
         }
     }
-
+	//释放pool
     for (p = pool, n = pool->d.next; /* void */; p = n, n = n->d.next) {
         ngx_free(p);
 
@@ -307,17 +311,20 @@ ngx_pcalloc(ngx_pool_t *pool, size_t size)
     return p;
 }
 
-
+/**
+ * 分配释放内存
+ *
+ */
 ngx_pool_cleanup_t *
 ngx_pool_cleanup_add(ngx_pool_t *p, size_t size)
 {
     ngx_pool_cleanup_t  *c;
-
+	//分配ngx_pool_cleanup_t空间
     c = ngx_palloc(p, sizeof(ngx_pool_cleanup_t));
     if (c == NULL) {
         return NULL;
     }
-
+	//分配参数空间，两次分配空间都是在POOL池中
     if (size) {
         c->data = ngx_palloc(p, size);
         if (c->data == NULL) {
@@ -359,7 +366,10 @@ ngx_pool_run_cleanup_file(ngx_pool_t *p, ngx_fd_t fd)
     }
 }
 
-
+/**
+ * 关闭文件
+ *
+ */
 void
 ngx_pool_cleanup_file(void *data)
 {
@@ -374,7 +384,10 @@ ngx_pool_cleanup_file(void *data)
     }
 }
 
-
+/**
+ * 删除文件，主要是日志文件
+ *
+ */
 void
 ngx_pool_delete_file(void *data)
 {

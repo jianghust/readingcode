@@ -35,18 +35,22 @@ ngx_pid_t     ngx_pid;
 sig_atomic_t  ngx_reap;
 sig_atomic_t  ngx_sigio;
 sig_atomic_t  ngx_sigalrm;
+//强制关闭整个服务
 sig_atomic_t  ngx_terminate;
+//优雅关闭所有服务
 sig_atomic_t  ngx_quit;
 sig_atomic_t  ngx_debug_quit;
 ngx_uint_t    ngx_exiting;
+//重读配置文件并且使服务队新配置生效
 sig_atomic_t  ngx_reconfigure;
+//重新打开服务中的所有文件
 sig_atomic_t  ngx_reopen;
-
+//平滑升级到新版本的nginx程序
 sig_atomic_t  ngx_change_binary;
 ngx_pid_t     ngx_new_binary;
 ngx_uint_t    ngx_inherited;
 ngx_uint_t    ngx_daemonized;
-
+//所有子进程不再接受处理新的连接，实际相当于对所有的子进程发送QUIT信号量
 sig_atomic_t  ngx_noaccept;
 ngx_uint_t    ngx_noaccepting;
 ngx_uint_t    ngx_restart;
@@ -161,6 +165,7 @@ ngx_master_process_cycle(ngx_cycle_t *cycle)
 
         ngx_log_debug0(NGX_LOG_DEBUG_EVENT, cycle->log, 0, "sigsuspend");
 
+		//阻塞当前进程,进程进入休眠状态,等待进程接收到相关的信号后激活进程继续执行
         sigsuspend(&set);
 
         ngx_time_update();
@@ -438,6 +443,11 @@ ngx_start_cache_manager_processes(ngx_cycle_t *cycle, ngx_uint_t respawn)
 }
 
 
+/**
+ * 向所有已经打开的channel(通过socketpair生成的句柄进行通信)发送ch信息
+ * cycle 当前进程的ngx_cycle_t结构体
+ * ch 将要想子进程发送的信息
+ */
 static void
 ngx_pass_open_channel(ngx_cycle_t *cycle, ngx_channel_t *ch)
 {
@@ -466,6 +476,10 @@ ngx_pass_open_channel(ngx_cycle_t *cycle, ngx_channel_t *ch)
 }
 
 
+/**
+ * 处理worker进程收到的信号
+ *
+ */
 static void
 ngx_signal_worker_processes(ngx_cycle_t *cycle, int signo)
 {
@@ -567,7 +581,9 @@ ngx_signal_worker_processes(ngx_cycle_t *cycle, int signo)
     }
 }
 
-
+/*
+ * 检查master进程的所有子进程，根据每个子进程状态判断是否要启动子进程、更改pid等
+ */
 static ngx_uint_t
 ngx_reap_children(ngx_cycle_t *cycle)
 {
@@ -694,7 +710,10 @@ ngx_reap_children(ngx_cycle_t *cycle)
     return live;
 }
 
-
+/**
+ *
+ * 退出master进程工作的循环
+ */
 static void
 ngx_master_process_exit(ngx_cycle_t *cycle)
 {
@@ -737,7 +756,9 @@ ngx_master_process_exit(ngx_cycle_t *cycle)
     exit(0);
 }
 
-
+/**
+ * 进入worker进程工作循环
+ */
 static void
 ngx_worker_process_cycle(ngx_cycle_t *cycle, void *data)
 {
@@ -791,6 +812,9 @@ ngx_worker_process_cycle(ngx_cycle_t *cycle, void *data)
 }
 
 
+/**
+ * 进入worker进程工作循环之前的初始化
+ */
 static void
 ngx_worker_process_init(ngx_cycle_t *cycle, ngx_int_t worker)
 {
@@ -955,7 +979,9 @@ ngx_worker_process_init(ngx_cycle_t *cycle, ngx_int_t worker)
     }
 }
 
-
+/**
+ * 子进程退出
+ */
 static void
 ngx_worker_process_exit(ngx_cycle_t *cycle)
 {
@@ -1104,7 +1130,9 @@ ngx_channel_handler(ngx_event_t *ev)
     }
 }
 
-
+/**
+ * cache进程的工作循环
+ */
 static void
 ngx_cache_manager_process_cycle(ngx_cycle_t *cycle, void *data)
 {

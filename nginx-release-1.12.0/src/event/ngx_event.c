@@ -189,7 +189,9 @@ ngx_module_t  ngx_event_core_module = {
     NGX_MODULE_V1_PADDING
 };
 
-
+/**
+ * 使用事件模块处理截止到现在已经收集到的事件
+ */
 void
 ngx_process_events_and_timers(ngx_cycle_t *cycle)
 {

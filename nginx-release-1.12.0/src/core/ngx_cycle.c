@@ -1076,7 +1076,7 @@ ngx_test_lockfile(u_char *file, ngx_log_t *log)
     return NGX_OK;
 }
 
-
+//重新打开服务中的所有文件
 void
 ngx_reopen_files(ngx_cycle_t *cycle, ngx_uid_t user)
 {
