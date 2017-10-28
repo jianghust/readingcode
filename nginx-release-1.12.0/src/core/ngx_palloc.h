@@ -17,6 +17,7 @@
  * NGX_MAX_ALLOC_FROM_POOL should be (ngx_pagesize - 1), i.e. 4095 on x86.
  * On Windows NT it decreases a number of locked pages in a kernel.
  */
+//调用系统函数getpagesize返回，一般是4096(4K)
 #define NGX_MAX_ALLOC_FROM_POOL  (ngx_pagesize - 1)
 
 #define NGX_DEFAULT_POOL_SIZE    (16 * 1024)
@@ -83,7 +84,7 @@ typedef struct {
 
 
 
-//内存池头部信息
+//内存池模块信息
 struct ngx_pool_s {
 	//包含 pool 的数据区指针的结构体 pool->d.last ~ pool->d.end 中的内存区便是可用数据区
     ngx_pool_data_t       d;
