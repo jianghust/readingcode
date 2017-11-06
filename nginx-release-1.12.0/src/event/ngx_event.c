@@ -745,6 +745,7 @@ ngx_event_process_init(ngx_cycle_t *cycle)
     for (i = 0; i < cycle->listening.nelts; i++) {
 
 #if (NGX_HAVE_REUSEPORT)
+		//继承父进程的listen socket
         if (ls[i].reuseport && ls[i].worker != ngx_worker) {
             continue;
         }

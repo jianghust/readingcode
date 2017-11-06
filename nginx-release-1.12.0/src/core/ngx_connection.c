@@ -457,6 +457,11 @@ ngx_open_listening_sockets(ngx_cycle_t *cycle)
                 return NGX_ERROR;
             }
 
+			//端口绑定复用，设置SO_REUSEADDR参数后，即是以前的建立的将该端口作为本地端口的连接仍然存在，还是可以启动一个监听服务并绑定端口
+			/*
+			 * 默认情况下,server重启,调用socket,bind,然后listen,会失败.因为该端口正在被使用.如果设定SO_REUSEADDR,那么server重启才会成功.因此
+			 * 所有的TCP server都必须设定此选项,用以应对server重启的现象.
+			 */
             if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR,
                            (const void *) &reuseaddr, sizeof(int))
                 == -1)
@@ -481,6 +486,7 @@ ngx_open_listening_sockets(ngx_cycle_t *cycle)
 
                 reuseport = 1;
 
+				//此参数设置的时候，允许捆绑同一个ip和端口
                 if (setsockopt(s, SOL_SOCKET, SO_REUSEPORT,
                                (const void *) &reuseport, sizeof(int))
                     == -1)
@@ -538,6 +544,7 @@ ngx_open_listening_sockets(ngx_cycle_t *cycle)
             ngx_log_debug2(NGX_LOG_DEBUG_CORE, log, 0,
                            "bind() %V #%d ", &ls[i].addr_text, s);
 
+			//bind端口
             if (bind(s, ls[i].sockaddr, ls[i].socklen) == -1) {
                 err = ngx_socket_errno;
 
@@ -591,6 +598,7 @@ ngx_open_listening_sockets(ngx_cycle_t *cycle)
                 continue;
             }
 
+			//开始监听listening
             if (listen(s, ls[i].backlog) == -1) {
                 err = ngx_socket_errno;
 

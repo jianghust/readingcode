@@ -9,6 +9,12 @@
 #include <ngx_core.h>
 
 
+/**
+ * 创建一个动态数组，并与分配n个大小为size的内存空间
+ * p 内存池
+ * n 初始分配元素的最大个数
+ * size 每个元素占用的内存大小
+ */
 ngx_array_t *
 ngx_array_create(ngx_pool_t *p, ngx_uint_t n, size_t size)
 {
@@ -27,6 +33,10 @@ ngx_array_create(ngx_pool_t *p, ngx_uint_t n, size_t size)
 }
 
 
+/**
+ * 销毁已经分配的数组元素空间和ngx_array_t动态数组对象
+ *
+ */
 void
 ngx_array_destroy(ngx_array_t *a)
 {
@@ -44,6 +54,10 @@ ngx_array_destroy(ngx_array_t *a)
 }
 
 
+/**
+ * 向当前数组中添加一个元素,返回的是这个新添加元素的地址，如果数组已经到达容量上限，会自动扩容
+ *
+ */
 void *
 ngx_array_push(ngx_array_t *a)
 {
@@ -91,6 +105,10 @@ ngx_array_push(ngx_array_t *a)
 }
 
 
+/**
+ * 向当前a动态数组中添加n个元素，返回的是新添加这批元素中的第一个元素地址
+ *
+ */
 void *
 ngx_array_push_n(ngx_array_t *a, ngx_uint_t n)
 {
