@@ -34,7 +34,7 @@ ngx_create_pool(size_t size, ngx_log_t *log)
 
     size = size - sizeof(ngx_pool_t);
 	//最大不超过4095
-    p/lloc->max = (size < NGX_MAX_ALLOC_FROM_POOL) ? size : NGX_MAX_ALLOC_FROM_POOL;
+    p->max = (size < NGX_MAX_ALLOC_FROM_POOL) ? size : NGX_MAX_ALLOC_FROM_POOL;
 
     p->current = p;
     p->chain = NULL;
@@ -247,7 +247,7 @@ ngx_palloc_block(ngx_pool_t *pool, size_t size)
 }
 
 /**
-* 大内存申请
+* 大内存申请 大内存申请只能是挂载到pool的头节点上，不能挂其他节点上，释放的时候，也只会循环释放头结点下的large链表
 */
 static void *
 ngx_palloc_large(ngx_pool_t *pool, size_t size)
@@ -256,15 +256,16 @@ ngx_palloc_large(ngx_pool_t *pool, size_t size)
     ngx_uint_t         n;
     ngx_pool_large_t  *large;
 
-	//分配指定大小的内存空间
+	//分配size大小的内存空间
     p = ngx_alloc(size, pool->log);
     if (p == NULL) {
         return NULL;
     }
 
     n = 0;
-	//找到未使用的大块内存结构体
+	//在 pool 的 large 链中寻找存储区为空的节点，把新分配的内存区首地址赋给它
     for (large = pool->large; large; large = large->next) {
+		// 找到 large 链末尾，在其后插入之，并返回给外部使用
         if (large->alloc == NULL) {
 			//插到后面
             large->alloc = p;
@@ -277,6 +278,8 @@ ngx_palloc_large(ngx_pool_t *pool, size_t size)
 		//关于“3”这个值，大于3采用头插法，小于3采用尾插法，这样的好处就是你最近插入的点，查找的效率快很多
     }
 	// 未找到可用的, 重新申请 大块内存结构体的 空间,并且往前插入
+	 // 创建 large 链的一个新节点，如果失败则释放刚才创建的 size 大小的内存，并返回 NULL
+	//结构体指针本身需要申请内存空间
     large = ngx_palloc_small(pool, sizeof(ngx_pool_large_t), 1);
     if (large == NULL) {
         ngx_free(p);

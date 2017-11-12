@@ -22,7 +22,10 @@
 
 #define NGX_DEFAULT_POOL_SIZE    (16 * 1024)
 
+//字节对齐数
 #define NGX_POOL_ALIGNMENT       16
+
+//ngx_pool_large_t结构体使用的时候需要申请内存空间,如果内存空间不够，则无法申请大块内存(为何需要两个ngx_pool_large_t?)
 #define NGX_MIN_POOL_SIZE                                                     \
     ngx_align((sizeof(ngx_pool_t) + 2 * sizeof(ngx_pool_large_t)),            \
               NGX_POOL_ALIGNMENT)
@@ -60,6 +63,7 @@ typedef struct ngx_pool_large_s  ngx_pool_large_t;
  * 内存池	  --- ngx_pool_s
  * 内存块数据 --- ngx_poll_data_t
  * 大块内存   --- ngx_pool_large_s
+ * 8B(64位 16B)
  */
 //ngx_pool_s中的大块内存成员
 struct ngx_pool_large_s {
@@ -81,9 +85,11 @@ typedef struct {
 	//当前节点申请内存失败的次数,   如果发现从当前pool中分配内存失败四次，则使用下一个pool,见ngx_palloc_block
     ngx_uint_t            failed;
 } ngx_pool_data_t;
+//sizeof(ngx_pool_data_t)=16B(64位上 32B)
 
 
 
+//sizeof(ngx_pool_t) 40B(64位上 80B)
 //内存池模块信息
 struct ngx_pool_s {
 	//包含 pool 的数据区指针的结构体 pool->d.last ~ pool->d.end 中的内存区便是可用数据区
