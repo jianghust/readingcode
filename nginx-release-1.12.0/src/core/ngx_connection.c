@@ -91,6 +91,12 @@ ngx_create_listening(ngx_conf_t *cf, struct sockaddr *sockaddr,
 }
 
 
+
+//****************************************************************
+//复制listen socket的配置， 后续的创建流程会根据listen socket 配置进行创建
+//假设原来监听listen socket个数为 1 , 工作线程数为10, 则复制后需要创建的listen 
+//socket的配置变为10*1个， 后续主进程会根据配置个数也就是10个来创建listen socket
+//****************************************************************
 ngx_int_t
 ngx_clone_listening(ngx_conf_t *cf, ngx_listening_t *ls)
 {
@@ -113,6 +119,7 @@ ngx_clone_listening(ngx_conf_t *cf, ngx_listening_t *ls)
 
         /* create a socket for each worker process */
 
+		//根据工作进程的数目复制listen socket配置
         ls = ngx_array_push(&cf->cycle->listening);
         if (ls == NULL) {
             return NGX_ERROR;
