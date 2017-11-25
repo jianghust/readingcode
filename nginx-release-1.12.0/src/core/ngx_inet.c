@@ -177,6 +177,7 @@ ngx_inet6_addr(u_char *p, size_t len, u_char *addr)
 #endif
 
 
+//将socket绑定的地址转换为文本格式(ipv4和ipv6的不相同) ，把sa中的ip和端口转换为A.B.C.D:port格式字符串存入text中
 size_t
 ngx_sock_ntop(struct sockaddr *sa, socklen_t socklen, u_char *text, size_t len,
     ngx_uint_t port)
@@ -674,6 +675,7 @@ ngx_parse_addr_port(ngx_pool_t *pool, ngx_addr_t *addr, u_char *text,
 }
 
 
+//对u参数里面的url,unix,inet6等地址进行简析；
 ngx_int_t
 ngx_parse_url(ngx_pool_t *pool, ngx_url_t *u)
 {
@@ -773,6 +775,7 @@ ngx_parse_unix_domain_url(ngx_pool_t *pool, ngx_url_t *u)
 }
 
 
+//解析uri，如果uri是IP:PORT形式则获取他们，如果是域名www.xxx.com形式，则解析域名
 static ngx_int_t
 ngx_parse_inet_url(ngx_pool_t *pool, ngx_url_t *u)
 {

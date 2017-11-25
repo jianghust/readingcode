@@ -302,6 +302,7 @@ main(int argc, char *const *argv)
         return 1;
     }
 
+	//如果有端口冲突，此处会初始化失败
     cycle = ngx_init_cycle(&init_cycle);
     if (cycle == NULL) {
         if (ngx_test_config) {

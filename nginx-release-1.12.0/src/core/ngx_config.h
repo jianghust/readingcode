@@ -114,6 +114,7 @@ typedef intptr_t        ngx_flag_t;
 #define ngx_inline      inline
 #endif
 
+//INADDR_NONE 表示无效的ip地址
 #ifndef INADDR_NONE  /* Solaris */
 #define INADDR_NONE  ((unsigned int) -1)
 #endif

@@ -77,29 +77,45 @@ typedef struct {
 } ngx_addr_t;
 
 
+//通配符解析见ngx_parse_inet_url
 typedef struct {
+	//保存IP地址+端口信息（e.g. 192.168.124.129:8011 或 money.163.com）
     ngx_str_t                 url;
+	//保存IP地址信息
     ngx_str_t                 host;
+	//保存port字符串
     ngx_str_t                 port_text;
+	//uri部分，在函数ngx_parse_inet_url()中设置
     ngx_str_t                 uri;
 
+	//端口，e.g. listen指令中指定的端口
     in_port_t                 port;
+	//ngx_http_core_listen中设置为80 //默认端口（当no_port字段为真时，将默认端口赋值给port字段， 默认端口通常是80）
     in_port_t                 default_port;
+	//address family, AF_xxx  //AF_UNIX代表域套接字  AF_INET代表普通网络套接字
     int                       family;
 
+	//ngx_http_core_listen中置1 //是否为指监听类的设置
     unsigned                  listen:1;
     unsigned                  uri_part:1;
+
+	//根据情况决定是否解析域名（将域名解析到IP地址）
     unsigned                  no_resolve:1;
 
+	//标识url中没有显示指定端口(为1时没有指定)  uri中是否有指定端口
     unsigned                  no_port:1;
+	//如listen  *:80则该位置1 //标识是否使用通配符（e.g. listen *:8000;）
     unsigned                  wildcard:1;
 
     socklen_t                 socklen;
     ngx_sockaddr_t            sockaddr;
 
+	//数组大小是naddrs字段；每个元素对应域名的IP地址信息(struct sockaddr_in)，在函数中赋值（ngx_inet_resolve_host()）
     ngx_addr_t               *addrs;
+	//url对应的IP地址个数,IP格式的地址将默认为1
     ngx_uint_t                naddrs;
 
+	//错误信息字符串
     char                     *err;
 } ngx_url_t;
 

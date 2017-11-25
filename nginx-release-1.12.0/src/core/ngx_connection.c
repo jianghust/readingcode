@@ -175,6 +175,7 @@ ngx_set_inherited_sockets(ngx_cycle_t *cycle)
         switch (ls[i].sockaddr->sa_family) {
 
 #if (NGX_HAVE_INET6)
+			//ip v6通信
         case AF_INET6:
             ls[i].addr_text_max_len = NGX_INET6_ADDRSTRLEN;
             len = NGX_INET6_ADDRSTRLEN + sizeof("[]:65535") - 1;
@@ -182,12 +183,14 @@ ngx_set_inherited_sockets(ngx_cycle_t *cycle)
 #endif
 
 #if (NGX_HAVE_UNIX_DOMAIN)
+			//unix domain本地通信
         case AF_UNIX:
             ls[i].addr_text_max_len = NGX_UNIX_ADDRSTRLEN;
             len = NGX_UNIX_ADDRSTRLEN;
             break;
 #endif
 
+			//默认的ip v4
         case AF_INET:
             ls[i].addr_text_max_len = NGX_INET_ADDRSTRLEN;
             len = NGX_INET_ADDRSTRLEN + sizeof(":65535") - 1;
