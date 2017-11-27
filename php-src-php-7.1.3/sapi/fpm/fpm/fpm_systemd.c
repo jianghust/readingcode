@@ -44,7 +44,7 @@ static void fpm_systemd() /* {{{ */
 	last = requests;
 }
 /* }}} */
-
+//发送fpm状态信息给systemd
 void fpm_systemd_heartbeat(struct fpm_event_s *ev, short which, void *arg) /* {{{ */
 {
 	static struct fpm_event_s heartbeat;

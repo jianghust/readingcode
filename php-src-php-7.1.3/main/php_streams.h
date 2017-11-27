@@ -127,7 +127,7 @@ typedef struct _php_stream_ops  {
 	/* these are optional */
 	int (*seek)(php_stream *stream, zend_off_t offset, int whence, zend_off_t *newoffset);
 	int (*cast)(php_stream *stream, int castas, void **ret);
-	int (*stat)(php_stream *stream, php_stream_statbuf *ssb);
+	int (*stat)(php_stream *stream, php_stream_statbuf *ssb);//系统的stat结构
 	int (*set_option)(php_stream *stream, int option, int value, void *ptrparam);
 } php_stream_ops;
 

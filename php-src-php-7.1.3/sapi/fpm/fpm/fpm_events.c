@@ -74,21 +74,24 @@ static void fpm_got_signal(struct fpm_event_s *ev, short which, void *arg) /* {{
 		switch (c) {
 			case 'C' :                  /* SIGCHLD */
 				zlog(ZLOG_DEBUG, "received SIGCHLD");
-				fpm_children_bury();
+				fpm_children_bury();//监听子进程退出信号
 				break;
 			case 'I' :                  /* SIGINT  */
 				zlog(ZLOG_DEBUG, "received SIGINT");
 				zlog(ZLOG_NOTICE, "Terminating ...");
+				//发送SIGINT信号，主进程和子进程退出
 				fpm_pctl(FPM_PCTL_STATE_TERMINATING, FPM_PCTL_ACTION_SET);
 				break;
 			case 'T' :                  /* SIGTERM */
 				zlog(ZLOG_DEBUG, "received SIGTERM");
 				zlog(ZLOG_NOTICE, "Terminating ...");
+				//发送SIGTERM信号，主进程和子进程退出
 				fpm_pctl(FPM_PCTL_STATE_TERMINATING, FPM_PCTL_ACTION_SET);
 				break;
 			case 'Q' :                  /* SIGQUIT */
 				zlog(ZLOG_DEBUG, "received SIGQUIT");
 				zlog(ZLOG_NOTICE, "Finishing ...");
+				//发送SIGQUIT信号，主进程和子进程退出
 				fpm_pctl(FPM_PCTL_STATE_FINISHING, FPM_PCTL_ACTION_SET);
 				break;
 			case '1' :                  /* SIGUSR1 */
@@ -99,6 +102,7 @@ static void fpm_got_signal(struct fpm_event_s *ev, short which, void *arg) /* {{
 					zlog(ZLOG_ERROR, "unable to re-opened error log file");
 				}
 
+				//重新打开日志，重启子进程
 				ret = fpm_log_open(1);
 				if (ret == 0) {
 					zlog(ZLOG_NOTICE, "access log file re-opened");
@@ -111,6 +115,7 @@ static void fpm_got_signal(struct fpm_event_s *ev, short which, void *arg) /* {{
 			case '2' :                  /* SIGUSR2 */
 				zlog(ZLOG_DEBUG, "received SIGUSR2");
 				zlog(ZLOG_NOTICE, "Reloading in progress ...");
+				//重启fpm
 				fpm_pctl(FPM_PCTL_STATE_RELOADING, FPM_PCTL_ACTION_SET);
 				break;
 		}
@@ -234,7 +239,7 @@ static void fpm_event_queue_destroy(struct fpm_event_queue_s **queue) /* {{{ */
 }
 /* }}} */
 
-int fpm_event_pre_init(char *machanism) /* {{{ */
+int fpm_event_pre_init(char *machanism) /* {{{ */ //判断使用那种类型的事件
 {
 	/* kqueue */
 	module = fpm_event_kqueue_module();
@@ -348,25 +353,28 @@ void fpm_event_loop(int err) /* {{{ */
 	static struct fpm_event_s signal_fd_event;
 
 	/* sanity check */
-	if (fpm_globals.parent_pid != getpid()) {
+	if (fpm_globals.parent_pid != getpid()) {//确保是主进程执行
 		return;
 	}
 
+	//注册信号IO事件
 	fpm_event_set(&signal_fd_event, fpm_signals_get_fd(), FPM_EV_READ, &fpm_got_signal, NULL);
 	fpm_event_add(&signal_fd_event, 0);
 
 	/* add timers */
 	if (fpm_globals.heartbeat > 0) {
-		fpm_pctl_heartbeat(NULL, 0, NULL);
+		fpm_pctl_heartbeat(NULL, 0, NULL);//添加检查超时进程timer事件
 	}
 
 	if (!err) {
+		//添加闲时服务维护timer事件
 		fpm_pctl_perform_idle_server_maintenance_heartbeat(NULL, 0, NULL);
 
 		zlog(ZLOG_DEBUG, "%zu bytes have been reserved in SHM", fpm_shm_get_size_allocated());
 		zlog(ZLOG_NOTICE, "ready to handle connections");
 
 #ifdef HAVE_SYSTEMD
+		//添加报告systemd timer事件
 		fpm_systemd_heartbeat(NULL, 0, NULL);
 #endif
 	}
@@ -376,7 +384,7 @@ void fpm_event_loop(int err) /* {{{ */
 		struct timeval ms;
 		struct timeval tmp;
 		struct timeval now;
-		unsigned long int timeout;
+		unsigned long int timeout;//这个timeout是等待事件，事件对象的timeout是标准时间点，同名不同
 		int ret;
 
 		/* sanity check */
@@ -402,13 +410,14 @@ void fpm_event_loop(int err) /* {{{ */
 
 		/* 1s timeout if none has been set */
 		if (!timerisset(&ms) || timercmp(&ms, &now, <) || timercmp(&ms, &now, ==)) {
-			timeout = 1000;
+			timeout = 1000;//没设置，默认１秒
 		} else {
+			//事件timeout值与当前时间相减，计算等待时间
 			timersub(&ms, &now, &tmp);
 			timeout = (tmp.tv_sec * 1000) + (tmp.tv_usec / 1000) + 1;
 		}
-
-		ret = module->wait(fpm_event_queue_fd, timeout);
+		//程序阻塞在这里，设置阻塞timeout，是为了及时处理timer事件	
+		ret = module->wait(fpm_event_queue_fd, timeout);//开始等待
 
 		/* is a child, nothing to do here */
 		if (ret == -2) {
@@ -424,15 +433,18 @@ void fpm_event_loop(int err) /* {{{ */
 		while (q) {
 			fpm_clock_get(&now);
 			if (q->ev) {
+				//如果事件过期或到期，运行事件回调
 				if (timercmp(&now, &q->ev->timeout, >) || timercmp(&now, &q->ev->timeout, ==)) {
 					fpm_event_fire(q->ev);
 					/* sanity check */
 					if (fpm_globals.parent_pid != getpid()) {
 						return;
 					}
+					//如果是连续运行timer事件,重设事件ev->timeout= ev->frequency＋now
 					if (q->ev->flags & FPM_EV_PERSIST) {
 						fpm_event_set_timeout(q->ev, now);
 					} else { /* delete the event */
+						//如果是运行一次的timer事件，移除队列
 						q2 = q;
 						if (q->prev) {
 							q->prev->next = q->next;

@@ -1567,9 +1567,9 @@ static zend_module_entry cgi_module_entry = {
 
 /* {{{ main
  */
-int main(int argc, char *argv[])
+int main(int argc, char *argv[]) //程序入口
 {
-	int exit_status = FPM_EXIT_OK;
+	int exit_status = FPM_EXIT_OK;//退出状态 0
 	int cgi = 0, c, use_extended_info = 0;
 	zend_file_handle file_handle;
 
@@ -1583,7 +1583,7 @@ int main(int argc, char *argv[])
 	void ***tsrm_ls;
 #endif
 
-	int max_requests = 500;
+	int max_requests = 500; //最大请求数
 	int requests = 0;
 	int fcgi_fd = 0;
 	fcgi_request *request;
@@ -1594,7 +1594,7 @@ int main(int argc, char *argv[])
 	int force_daemon = -1;
 	int force_stderr = 0;
 	int php_information = 0;
-	int php_allow_to_run_as_root = 0;
+	int php_allow_to_run_as_root = 0;//是否允许以root帐号跑
 
 #ifdef HAVE_SIGNAL_H
 #if defined(SIGPIPE) && defined(SIG_IGN)
@@ -1612,9 +1612,9 @@ int main(int argc, char *argv[])
 	tsrm_ls = ts_resource(0);
 #endif
 
-	zend_signal_startup();
+	zend_signal_startup();//zend开始启动
 
-	sapi_startup(&cgi_sapi_module);
+	sapi_startup(&cgi_sapi_module);//注册cgi模块启动
 	cgi_sapi_module.php_ini_path_override = NULL;
 	cgi_sapi_module.php_ini_ignore_cwd = 1;
 
@@ -1631,7 +1631,7 @@ int main(int argc, char *argv[])
 	setmode(_fileno(stderr), O_BINARY);	/* make the stdio mode be binary */
 #endif
 
-	while ((c = php_getopt(argc, argv, OPTIONS, &php_optarg, &php_optind, 0, 2)) != -1) {
+	while ((c = php_getopt(argc, argv, OPTIONS, &php_optarg, &php_optind, 0, 2)) != -1) { //启动时候的各种参数
 		switch (c) {
 			case 'c':
 				if (cgi_sapi_module.php_ini_path_override) {
@@ -1641,7 +1641,7 @@ int main(int argc, char *argv[])
 				break;
 
 			case 'n':
-				cgi_sapi_module.php_ini_ignore = 1;
+				cgi_sapi_module.php_ini_ignore = 1;//不需要加载ini文件
 				break;
 
 			case 'd': {
@@ -1891,7 +1891,7 @@ consult the installation file that came with this distribution, or visit \n\
 	request = fpm_init_request(fcgi_fd);
 
 	zend_first_try {
-		while (EXPECTED(fcgi_accept_request(request) >= 0)) {
+		while (EXPECTED(fcgi_accept_request(request) >= 0)) {//开始接受请求
 			char *primary_script = NULL;
 			request_body_fd = -1;
 			SG(server_context) = (void *) request;

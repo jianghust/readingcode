@@ -97,21 +97,21 @@ typedef void (*swap_func_t)(void *, void *);
 typedef void (*sort_func_t)(void *, size_t, size_t, compare_func_t, swap_func_t);
 typedef void (*dtor_func_t)(zval *pDest);
 typedef void (*copy_ctor_func_t)(zval *pElement);
-
+//只有是指针的才是引用计数，其他值都是直接copy
 typedef union _zend_value {
-	zend_long         lval;				/* long value */
-	double            dval;				/* double value */
-	zend_refcounted  *counted;
-	zend_string      *str;
-	zend_array       *arr;
-	zend_object      *obj;
-	zend_resource    *res;
-	zend_reference   *ref;
-	zend_ast_ref     *ast;
+	zend_long         lval;				/* long value */ //整型
+	double            dval;				/* double value */ //浮点数
+	zend_refcounted  *counted; //引用计数
+	zend_string      *str;//字符串
+	zend_array       *arr;//数组
+	zend_object      *obj;//对象
+	zend_resource    *res;//resource资源类型
+	zend_reference   *ref;//引用类型
+	zend_ast_ref     *ast;//常量表达式
 	zval             *zv;
-	void             *ptr;
-	zend_class_entry *ce;
-	zend_function    *func;
+	void             *ptr;//指针
+	zend_class_entry *ce; //类
+	zend_function    *func;//函数
 	struct {
 		uint32_t w1;
 		uint32_t w2;
@@ -119,36 +119,37 @@ typedef union _zend_value {
 } zend_value;
 
 struct _zval_struct {
-	zend_value        value;			/* value */
+	zend_value        value;			/* value */ //变量的实际值,联合体占用8字节
 	union {
 		struct {
 			ZEND_ENDIAN_LOHI_4(
-				zend_uchar    type,			/* active type */
-				zend_uchar    type_flags,
+				zend_uchar    type,			/* active type */ //变量类型
+				zend_uchar    type_flags, //类型掩码，不同的类型会有不同的几种属性，内存管理会用到
 				zend_uchar    const_flags,
-				zend_uchar    reserved)	    /* call info for EX(This) */
+				zend_uchar    reserved)	    /* call info for EX(This) */ //call info，zend执行流程会用到
 		} v;
-		uint32_t type_info;
+		uint32_t type_info;//上面4个值的组合值，可以直接根据type_info取到4个对应位置的值 4字节
 	} u1;
-	union {
-		uint32_t     next;                 /* hash collision chain */
+	union {//在zval中通常未使用，在特殊的上下文中，这部分空间会被存储一些额外的信息
+		uint32_t     next;                 /* hash collision chain */ //hash冲突链表中的下一个处理元素
 		uint32_t     cache_slot;           /* literal cache slot */
-		uint32_t     lineno;               /* line number (for ast nodes) */
-		uint32_t     num_args;             /* arguments number for EX(This) */
-		uint32_t     fe_pos;               /* foreach position */
-		uint32_t     fe_iter_idx;          /* foreach iterator index */
+		uint32_t     lineno;               /* line number (for ast nodes) */ //ast节点用的行号
+		uint32_t     num_args;             /* arguments number for EX(This) */ //函数的参数个数
+		uint32_t     fe_pos;               /* foreach position */ //循环的位置
+		uint32_t     fe_iter_idx;          /* foreach iterator index */ //数组的迭代索引
 		uint32_t     access_flags;         /* class constant access flags */
 		uint32_t     property_guard;       /* single property guard */
 		uint32_t     extra;                /* not further specified */
-	} u2;
+	} u2; //4字节
 };
 
+//引用计数信息的结构
 typedef struct _zend_refcounted_h {
-	uint32_t         refcount;			/* reference counter 32-bit */
+	uint32_t         refcount;			/* reference counter 32-bit */ //引用个数
 	union {
 		struct {
 			ZEND_ENDIAN_LOHI_3(
-				zend_uchar    type,
+				zend_uchar    type, //引用类型
 				zend_uchar    flags,    /* used for strings & objects */
 				uint16_t      gc_info)  /* keeps GC root number (or 0) and color */
 		} v;
@@ -161,22 +162,22 @@ struct _zend_refcounted {
 };
 
 struct _zend_string {
-	zend_refcounted_h gc;
-	zend_ulong        h;                /* hash value */
-	size_t            len;
-	char              val[1];
+	zend_refcounted_h gc;//变量引用信息，比如当前value的引用数，所有用到引用计数的变量类型都会有这个结构
+	zend_ulong        h;                /* hash value */ //哈希值，数组中计算索引时会用到,使用前初始化，防止使用字符串作为hashtable的key在查找时需要重复计算其hash
+	size_t            len;//字符串长度，通过这个值保证二进制安全
+	char              val[1];//字符串内容，变长struct，分配时按len长度申请内存
 };
 
 typedef struct _Bucket {
-	zval              val;
-	zend_ulong        h;                /* hash value (or numeric index)   */
-	zend_string      *key;              /* string key or NULL for numerics */
+	zval              val; //hash具体结构
+	zend_ulong        h;                /* hash value (or numeric index)   */ //hash值
+	zend_string      *key;              /* string key or NULL for numerics */ //hashkey
 } Bucket;
 
 typedef struct _zend_array HashTable;
-
+//普通的有序HashTable
 struct _zend_array {
-	zend_refcounted_h gc;
+	zend_refcounted_h gc;//引用计数相关信息
 	union {
 		struct {
 			ZEND_ENDIAN_LOHI_4(
@@ -187,14 +188,14 @@ struct _zend_array {
 		} v;
 		uint32_t flags;
 	} u;
-	uint32_t          nTableMask;
-	Bucket           *arData;
-	uint32_t          nNumUsed;
-	uint32_t          nNumOfElements;
-	uint32_t          nTableSize;
-	uint32_t          nInternalPointer;
-	zend_long         nNextFreeElement;
-	dtor_func_t       pDestructor;
+	uint32_t          nTableMask;//计算bucket索引时的掩码
+	Bucket           *arData;//bucket数组,按照插入的顺序存储元素,重新分配的时候都会按照2倍来分配
+	uint32_t          nNumUsed;//已用bucket数,删除元素的时候只会设置元素为UNDEF，当nNumUsed达到nTableSize的时候，PHP会通过丢弃UNDEF的记录，自动压缩arData
+	uint32_t          nNumOfElements;//实际元素数，nNumOfElements <= nNumUsed，因为删除的并不是直接从arData中移除
+	uint32_t          nTableSize;//hash表的大小，为2^n
+	uint32_t          nInternalPointer;//数值索引
+	zend_long         nNextFreeElement;//表示数字键值数组中下一个数字索引的位置
+	dtor_func_t       pDestructor; //删除哈希表中的元素使用的析构函数
 };
 
 /*
@@ -275,28 +276,28 @@ typedef struct _HashTableIterator {
 } HashTableIterator;
 
 struct _zend_object {
-	zend_refcounted_h gc;
+	zend_refcounted_h gc;//引用计数相关
 	uint32_t          handle; // TODO: may be removed ???
-	zend_class_entry *ce;
-	const zend_object_handlers *handlers;
-	HashTable        *properties;
+	zend_class_entry *ce;//对象对应的class类
+	const zend_object_handlers *handlers;//对象的魔术防范
+	HashTable        *properties;//对象属性hash表
 	zval              properties_table[1];
 };
-
+//资源指的是tcp连接、文件句柄等等类型，这种类型比较灵活，可以随意定义struct，通过ptr指向
 struct _zend_resource {
 	zend_refcounted_h gc;
 	int               handle; // TODO: may be removed ???
 	int               type;
 	void             *ptr;
 };
-
+//特殊的类型引用，类似指针，使用&符号传递，但引用只可能有一层 ，不会出现一个引用指向另外一个引用的情况 
 struct _zend_reference {
 	zend_refcounted_h gc;
 	zval              val;
 };
 
 struct _zend_ast_ref {
-	zend_refcounted_h gc;
+	zend_refcounted_h gc; //引用计数
 	zend_ast         *ast;
 };
 
@@ -327,7 +328,7 @@ struct _zend_ast_ref {
 #define IS_INDIRECT             	15
 #define IS_PTR						17
 #define _IS_ERROR					20
-
+//获取类型值
 static zend_always_inline zend_uchar zval_get_type(const zval* pz) {
 	return pz->u1.v.type;
 }
@@ -340,7 +341,7 @@ static zend_always_inline zend_uchar zval_get_type(const zval* pz) {
 /* we should never set just Z_TYPE, we should set Z_TYPE_INFO */
 #define Z_TYPE(zval)				zval_get_type(&(zval))
 #define Z_TYPE_P(zval_p)			Z_TYPE(*(zval_p))
-
+//获取flag值
 #define Z_TYPE_FLAGS(zval)			(zval).u1.v.type_flags
 #define Z_TYPE_FLAGS_P(zval_p)		Z_TYPE_FLAGS(*(zval_p))
 
@@ -395,15 +396,16 @@ static zend_always_inline zend_uchar zval_get_type(const zval* pz) {
 #define Z_GC_TYPE_INFO_P(zval_p)	Z_GC_TYPE_INFO(*(zval_p))
 
 /* zval.u1.v.type_flags */
-#define IS_TYPE_CONSTANT			(1<<0)
-#define IS_TYPE_IMMUTABLE			(1<<1)
-#define IS_TYPE_REFCOUNTED			(1<<2)
-#define IS_TYPE_COLLECTABLE			(1<<3)
-#define IS_TYPE_COPYABLE			(1<<4)
+#define IS_TYPE_CONSTANT			(1<<0)//是否是常量
+#define IS_TYPE_IMMUTABLE			(1<<1)//不可变的类型， 比如存在共享内存的数组
+#define IS_TYPE_REFCOUNTED			(1<<2)//需要引用计数的类型
+#define IS_TYPE_COLLECTABLE			(1<<3)//可能包含循环引用的类型(IS_ARRAY, IS_OBJECT)
+#define IS_TYPE_COPYABLE			(1<<4)//可被复制的类型，不包括对象和资源
 
 /* extended types */
 #define IS_INTERNED_STRING_EX		IS_STRING
 
+//IS_TYPE_COPYABLE：是否是可拷贝的
 #define IS_STRING_EX				(IS_STRING         | ((                   IS_TYPE_REFCOUNTED |                       IS_TYPE_COPYABLE) << Z_TYPE_FLAGS_SHIFT))
 #define IS_ARRAY_EX					(IS_ARRAY          | ((                   IS_TYPE_REFCOUNTED | IS_TYPE_COLLECTABLE | IS_TYPE_COPYABLE) << Z_TYPE_FLAGS_SHIFT))
 #define IS_OBJECT_EX				(IS_OBJECT         | ((                   IS_TYPE_REFCOUNTED | IS_TYPE_COLLECTABLE                   ) << Z_TYPE_FLAGS_SHIFT))
@@ -424,22 +426,22 @@ static zend_always_inline zend_uchar zval_get_type(const zval* pz) {
 #define RESET_CONSTANT_VISITED(p)	Z_CONST_FLAGS_P(p) &= ~IS_CONSTANT_VISITED_MARK
 
 /* string flags (zval.value->gc.u.flags) */
-#define IS_STR_PERSISTENT			(1<<0) /* allocated using malloc   */
-#define IS_STR_INTERNED				(1<<1) /* interned string          */
-#define IS_STR_PERMANENT        	(1<<2) /* relives request boundary */
+#define IS_STR_PERSISTENT			(1<<0) /* allocated using malloc   */  //是malloc分配内存的字符串
+#define IS_STR_INTERNED				(1<<1) /* interned string          */ //保留字符，一直存在直到请求结束才销毁,PHP源码中不可变的字符串都是保留字符(包括字符常量,变量名等)
+#define IS_STR_PERMANENT        	(1<<2) /* relives request boundary */ //不可变的字符串， 用作哨兵作用
 
-#define IS_STR_CONSTANT             (1<<3) /* constant index */
-#define IS_STR_CONSTANT_UNQUALIFIED (1<<4) /* the same as IS_CONSTANT_UNQUALIFIED */
+#define IS_STR_CONSTANT             (1<<3) /* constant index */ //代表常量的字符串
+#define IS_STR_CONSTANT_UNQUALIFIED (1<<4) /* the same as IS_CONSTANT_UNQUALIFIED */ //带有可能命名空间的常量字符串
 
 /* array flags */
-#define IS_ARRAY_IMMUTABLE			(1<<1) /* the same as IS_TYPE_IMMUTABLE */
+#define IS_ARRAY_IMMUTABLE			(1<<1) /* the same as IS_TYPE_IMMUTABLE */ //不可变的类型， 比如存在共享内存的数组
 
 /* object flags (zval.value->gc.u.flags) */
-#define IS_OBJ_APPLY_COUNT			0x07
-#define IS_OBJ_DESTRUCTOR_CALLED	(1<<3)
-#define IS_OBJ_FREE_CALLED			(1<<4)
-#define IS_OBJ_USE_GUARDS           (1<<5)
-#define IS_OBJ_HAS_GUARDS           (1<<6)
+#define IS_OBJ_APPLY_COUNT			0x07  //递归保护
+#define IS_OBJ_DESTRUCTOR_CALLED	(1<<3) //析构函数已经调用
+#define IS_OBJ_FREE_CALLED			(1<<4) //清理函数已经调用
+#define IS_OBJ_USE_GUARDS           (1<<5) //魔术方法递归保护
+#define IS_OBJ_HAS_GUARDS           (1<<6) //是否有魔术方法递归保护标志
 
 #define Z_OBJ_APPLY_COUNT(zval) \
 	(Z_GC_FLAGS(zval) & IS_OBJ_APPLY_COUNT)
@@ -1021,3 +1023,4 @@ static zend_always_inline uint32_t zval_delref_p(zval* pz) {
  * indent-tabs-mode: t
  * End:
  */
+

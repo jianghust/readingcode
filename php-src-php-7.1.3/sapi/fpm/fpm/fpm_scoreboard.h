@@ -16,26 +16,26 @@
 
 #define FPM_SCOREBOARD_ACTION_SET 0
 #define FPM_SCOREBOARD_ACTION_INC 1
-
+//所有worker进程的统计信息
 struct fpm_scoreboard_proc_s {
 	union {
 		atomic_t lock;
 		char dummy[16];
-	};
-	int used;
-	time_t start_epoch;
-	pid_t pid;
-	unsigned long requests;
-	enum fpm_request_stage_e request_stage;
-	struct timeval accepted;
-	struct timeval duration;
-	time_t accepted_epoch;
-	struct timeval tv;
-	char request_uri[128];
-	char query_string[512];
-	char request_method[16];
-	size_t content_length; /* used with POST only */
-	char script_filename[256];
+	};//锁状态
+	int used;//使用标识 0=未使用 1=正在使用
+	time_t start_epoch;//使用开始时间
+	pid_t pid;//进程id
+	unsigned long requests;//处理请求次数
+	enum fpm_request_stage_e request_stage;//处理请求阶段
+	struct timeval accepted;//accept请求时间
+	struct timeval duration;//脚本总执行时间
+	time_t accepted_epoch;//accept请求时间戳(秒)
+	struct timeval tv;//活跃时间
+	char request_uri[128];//请求路径
+	char query_string[512];//请求参数
+	char request_method[16];//请求方式
+	size_t content_length; /* used with POST only */ //请求内容长度
+	char script_filename[256];//脚本名称
 	char auth_user[32];
 #ifdef HAVE_TIMES
 	struct tms cpu_accepted;
@@ -43,29 +43,29 @@ struct fpm_scoreboard_proc_s {
 	struct tms last_request_cpu;
 	struct timeval last_request_cpu_duration;
 #endif
-	size_t memory;
+	size_t memory;//脚本占用内存大小
 };
-
+//worker进程的运行状态信息
 struct fpm_scoreboard_s {
 	union {
-		atomic_t lock;
+		atomic_t lock;//锁状态
 		char dummy[16];
 	};
-	char pool[32];
-	int pm;
-	time_t start_epoch;
-	int idle;
-	int active;
-	int active_max;
+	char pool[32];//实例名称 例如：[www]
+	int pm;//pm运行模式
+	time_t start_epoch;//开始时间
+	int idle;//procs的空闲数
+	int active;//procs的使用数
+	int active_max;//最大procs使用数
 	unsigned long int requests;
-	unsigned int max_children_reached;
-	int lq;
-	int lq_max;
+	unsigned int max_children_reached;//到达最大进程数限制的次数
+	int lq;//当前listen queue的请求数(accept操作，可以过tcpi_unacked或getsocketopt获取)
+	int lq_max;//listen queue大小
 	unsigned int lq_len;
-	unsigned int nprocs;
-	int free_proc;
+	unsigned int nprocs;//procs总数
+	int free_proc;//从procs列表遍历下一个空闲对象的开始下标
 	unsigned long int slow_rq;
-	struct fpm_scoreboard_proc_s *procs[];
+	struct fpm_scoreboard_proc_s *procs[];//列表
 };
 
 int fpm_scoreboard_init_main();

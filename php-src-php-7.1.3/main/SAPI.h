@@ -217,11 +217,11 @@ SAPI_API void sapi_terminate_process(void);
 END_EXTERN_C()
 
 struct _sapi_module_struct {
-	char *name;
-	char *pretty_name;
+	char *name; //应用名称，比如cli,cgi等
+	char *pretty_name; //应用层更易读的名字，比如cli对应的就是Command Line Interface
 
-	int (*startup)(struct _sapi_module_struct *sapi_module);
-	int (*shutdown)(struct _sapi_module_struct *sapi_module);
+	int (*startup)(struct _sapi_module_struct *sapi_module); //当一个应用要调用php的时候，这个模块启动的时候会调用的函数
+	int (*shutdown)(struct _sapi_module_struct *sapi_module); //当一个应用要调用php的时候，这个模块结束的时候会调用的函数
 
 	int (*activate)(void);
 	int (*deactivate)(void);

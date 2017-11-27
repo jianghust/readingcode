@@ -1083,7 +1083,7 @@ SAPI_API double sapi_get_request_time(void)
 		SG(global_request_time) = sapi_module.get_request_time();
 	} else {
 		struct timeval tp = {0};
-		if (!gettimeofday(&tp, NULL)) {
+		if (!gettimeofday(&tp, NULL)) {//获取系统当前时间
 			SG(global_request_time) = (double)(tp.tv_sec + tp.tv_usec / 1000000.00);
 		} else {
 			SG(global_request_time) = (double)time(0);

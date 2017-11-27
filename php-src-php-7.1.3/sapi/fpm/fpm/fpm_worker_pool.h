@@ -19,8 +19,8 @@ enum fpm_address_domain {
 };
 
 struct fpm_worker_pool_s {
-	struct fpm_worker_pool_s *next;
-	struct fpm_worker_pool_config_s *config;
+	struct fpm_worker_pool_s *next;//链表，指向下一个进程
+	struct fpm_worker_pool_config_s *config;//进程的配置，主要是php-fpm.conf中的相关选项
 	char *user, *home;									/* for setting env USER and HOME */
 	enum fpm_address_domain listen_address_domain;
 	int listening_socket;
@@ -40,7 +40,7 @@ struct fpm_worker_pool_s {
 	char **limit_extensions;
 
 	/* for ondemand PM */
-	struct fpm_event_s *ondemand_event;
+	struct fpm_event_s *ondemand_event;//进程在有需求的时候才产生的模式
 	int socket_event_set;
 
 #ifdef HAVE_FPM_ACL

@@ -165,7 +165,7 @@ static void sig_handler(int signo) /* {{{ */
 	};
 	char s;
 	int saved_errno;
-
+	//确保是主进程执行
 	if (fpm_globals.parent_pid != getpid()) {
 		/* prevent a signal race condition when child process
 			have not set up it's own signal handler yet */
@@ -174,7 +174,7 @@ static void sig_handler(int signo) /* {{{ */
 
 	saved_errno = errno;
 	s = sig_chars[signo];
-	zend_quiet_write(sp[1], &s, sizeof(s));
+	zend_quiet_write(sp[1], &s, sizeof(s));//主进程向sp[1]管道写入信号数据
 	errno = saved_errno;
 }
 /* }}} */
@@ -183,12 +183,12 @@ int fpm_signals_init_main() /* {{{ */
 {
 	struct sigaction act;
 
-	if (0 > socketpair(AF_UNIX, SOCK_STREAM, 0, sp)) {
+	if (0 > socketpair(AF_UNIX, SOCK_STREAM, 0, sp)) {//创建管道sp
 		zlog(ZLOG_SYSERROR, "failed to init signals: socketpair()");
 		return -1;
 	}
 
-	if (0 > fd_set_blocked(sp[0], 0) || 0 > fd_set_blocked(sp[1], 0)) {
+	if (0 > fd_set_blocked(sp[0], 0) || 0 > fd_set_blocked(sp[1], 0)) {//设置非阻塞模式
 		zlog(ZLOG_SYSERROR, "failed to init signals: fd_set_blocked()");
 		return -1;
 	}
@@ -198,10 +198,11 @@ int fpm_signals_init_main() /* {{{ */
 		return -1;
 	}
 
-	memset(&act, 0, sizeof(act));
-	act.sa_handler = sig_handler;
-	sigfillset(&act.sa_mask);
+	memset(&act, 0, sizeof(act));//重置act
+	act.sa_handler = sig_handler;//设置信号回调
+	sigfillset(&act.sa_mask);//注册信号
 
+	//给主进程注册相关的信号,代表接受此类信号
 	if (0 > sigaction(SIGTERM,  &act, 0) ||
 	    0 > sigaction(SIGINT,   &act, 0) ||
 	    0 > sigaction(SIGUSR1,  &act, 0) ||
@@ -223,7 +224,7 @@ int fpm_signals_init_child() /* {{{ */
 	memset(&act, 0, sizeof(act));
 	memset(&act_dfl, 0, sizeof(act_dfl));
 
-	act.sa_handler = &sig_soft_quit;
+	act.sa_handler = &sig_soft_quit;//软退出
 	act.sa_flags |= SA_RESTART;
 
 	act_dfl.sa_handler = SIG_DFL;

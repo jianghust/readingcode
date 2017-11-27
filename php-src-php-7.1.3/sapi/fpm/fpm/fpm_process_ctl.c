@@ -113,7 +113,7 @@ static void fpm_pctl_action_last() /* {{{ */
 
 		case FPM_PCTL_STATE_FINISHING:
 		case FPM_PCTL_STATE_TERMINATING:
-			fpm_pctl_exit();
+			fpm_pctl_exit();//进程退出，清理所有资源
 			break;
 	}
 }
@@ -152,7 +152,7 @@ void fpm_pctl_kill_all(int signo) /* {{{ */
 		struct fpm_child_s *child;
 
 		for (child = wp->children; child; child = child->next) {
-			int res = kill(child->pid, signo);
+			int res = kill(child->pid, signo);//给所有子进程发kill信号
 
 			zlog(ZLOG_DEBUG, "[pool %s] sending signal %d %s to child %d",
 				child->wp->config->name, signo,
@@ -174,7 +174,7 @@ static void fpm_pctl_action_next() /* {{{ */
 {
 	int sig, timeout;
 
-	if (!fpm_globals.running_children) {
+	if (!fpm_globals.running_children) {//判断是否有子进程在运行
 		fpm_pctl_action_last();
 	}
 
@@ -184,6 +184,7 @@ static void fpm_pctl_action_next() /* {{{ */
 		} else {
 			sig = SIGQUIT;
 		}
+		//首次调用使用fpm.conf配置`process_control_timeout`参数值作为超时时间
 		timeout = fpm_global_config.process_control_timeout;
 	} else {
 		if (fpm_signal_sent == SIGQUIT) {
@@ -193,10 +194,10 @@ static void fpm_pctl_action_next() /* {{{ */
 		}
 		timeout = 1;
 	}
-
+	//杀掉所有子进程
 	fpm_pctl_kill_all(sig);
 	fpm_signal_sent = sig;
-	fpm_pctl_timeout_set(timeout);
+	fpm_pctl_timeout_set(timeout);//注册定时事件监控子进程是否全部退出
 }
 /* }}} */
 
@@ -438,6 +439,7 @@ static void fpm_pctl_perform_idle_server_maintenance(struct timeval *now) /* {{{
 }
 /* }}} */
 
+//检查超时进程
 void fpm_pctl_heartbeat(struct fpm_event_s *ev, short which, void *arg) /* {{{ */
 {
 	static struct fpm_event_s heartbeat;
@@ -463,6 +465,7 @@ void fpm_pctl_heartbeat(struct fpm_event_s *ev, short which, void *arg) /* {{{ *
 }
 /* }}} */
 
+//worker进程动态管理,更新记分板的统计数据
 void fpm_pctl_perform_idle_server_maintenance_heartbeat(struct fpm_event_s *ev, short which, void *arg) /* {{{ */
 {
 	static struct fpm_event_s heartbeat;

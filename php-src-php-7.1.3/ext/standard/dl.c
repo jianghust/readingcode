@@ -129,7 +129,7 @@ PHPAPI int php_load_extension(char *filename, int type, int start_now)
 	}
 
 	/* load dynamic symbol */
-	handle = DL_LOAD(libpath);
+	handle = DL_LOAD(libpath);//调用dlopen打开指定的动态连接库文件：xx.so
 	if (!handle) {
 #if PHP_WIN32
 		char *err = GET_DL_ERROR();
@@ -148,7 +148,7 @@ PHPAPI int php_load_extension(char *filename, int type, int start_now)
 	}
 	efree(libpath);
 
-	get_module = (zend_module_entry *(*)(void)) DL_FETCH_SYMBOL(handle, "get_module");
+	get_module = (zend_module_entry *(*)(void)) DL_FETCH_SYMBOL(handle, "get_module");//调用dlsym获取get_module的函数指针
 
 	/* Some OS prepend _ to symbol names while their dynamic linker
 	 * does not do that automatically. Thus we check manually for

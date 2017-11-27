@@ -115,7 +115,7 @@
 /* }}} */
 
 PHPAPI int (*php_register_internal_extensions_func)(void) = php_register_internal_extensions;
-
+//线程安全
 #ifndef ZTS
 php_core_globals core_globals;
 #else

@@ -459,7 +459,7 @@ int fcgi_in_shutdown(void)
 
 void fcgi_terminate(void)
 {
-	in_shutdown = 1;
+	in_shutdown = 1;//设置不再接受新的请求，子进程判断in_shutdown=1的时候会自动退出
 }
 
 void fcgi_request_set_keep(fcgi_request *req, int new_value)
@@ -1370,13 +1370,13 @@ int fcgi_accept_request(fcgi_request *req)
 	while (1) {
 		if (req->fd < 0) {
 			while (1) {
-				if (in_shutdown) {
+				if (in_shutdown) {//已经关闭，则不再接受请求，子进程退出
 					return -1;
 				}
 #ifdef _WIN32
 				if (!req->tcp) {
 					pipe = (HANDLE)_get_osfhandle(req->listen_socket);
-					FCGI_LOCK(req->listen_socket);
+					FCGI_LOCK(req->listen_socket);//加锁，解决惊群效应
 					ov.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 					if (!ConnectNamedPipe(pipe, &ov)) {
 						errno = GetLastError();
@@ -1393,7 +1393,7 @@ int fcgi_accept_request(fcgi_request *req)
 					}
 					CloseHandle(ov.hEvent);
 					req->fd = req->listen_socket;
-					FCGI_UNLOCK(req->listen_socket);
+					FCGI_UNLOCK(req->listen_socket);//解锁
 				} else {
 					SOCKET listen_socket = (SOCKET)_get_osfhandle(req->listen_socket);
 #else
@@ -1406,7 +1406,7 @@ int fcgi_accept_request(fcgi_request *req)
 					req->hook.on_accept();
 
 					FCGI_LOCK(req->listen_socket);
-					req->fd = accept(listen_socket, (struct sockaddr *)&sa, &len);
+					req->fd = accept(listen_socket, (struct sockaddr *)&sa, &len);//接受请求
 					FCGI_UNLOCK(req->listen_socket);
 
 					client_sa = sa;

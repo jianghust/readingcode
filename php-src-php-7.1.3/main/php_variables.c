@@ -863,7 +863,7 @@ static zend_bool php_auto_globals_create_request(zend_string *name)
 	zend_hash_update(&EG(symbol_table), name, &form_variables);
 	return 0;
 }
-
+//全局变量自动注册
 void php_startup_auto_globals(void)
 {
 	zend_register_auto_global(zend_string_init("_GET", sizeof("_GET")-1, 1), 0, php_auto_globals_create_get);

@@ -40,21 +40,21 @@ int fpm_run(int *max_requests);
 int fpm_init(int argc, char **argv, char *config, char *prefix, char *pid, int test_conf, int run_as_root, int force_daemon, int force_stderr);
 
 struct fpm_globals_s {
-	pid_t parent_pid;
+	pid_t parent_pid; //父进程pid
 	int argc;
 	char **argv;
 	char *config;
 	char *prefix;
 	char *pid;
-	int running_children;
+	int running_children;//正在运行的子进程数量
 	int error_log_fd;
-	int log_level;
+	int log_level;//日志等级
 	int listening_socket; /* for this child */
 	int max_requests; /* for this child */
-	int is_child;
-	int test_successful;
+	int is_child;//是否是子进程
+	int test_successful;//是否测试成功过配置文件
 	int heartbeat;
-	int run_as_root;
+	int run_as_root;//是否以root账号运行
 	int force_stderr;
 	int send_config_pipe[2];
 };

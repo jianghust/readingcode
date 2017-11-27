@@ -139,16 +139,16 @@ void zend_const_expr_to_zval(zval *result, zend_ast *ast);
 typedef int (*user_opcode_handler_t) (zend_execute_data *execute_data);
 
 struct _zend_op {
-	const void *handler;
-	znode_op op1;
-	znode_op op2;
-	znode_op result;
+	const void *handler; //对应执行的C语言function，即每条opcode都有一个C function处理
+	znode_op op1; //操作数1
+	znode_op op2; //操作数2
+	znode_op result; //返回值
 	uint32_t extended_value;
 	uint32_t lineno;
-	zend_uchar opcode;
-	zend_uchar op1_type;
-	zend_uchar op2_type;
-	zend_uchar result_type;
+	zend_uchar opcode; //opcode指令
+	zend_uchar op1_type; //操作数1类型
+	zend_uchar op2_type; //操作数2类型
+	zend_uchar result_type; //返回值类型
 };
 
 
@@ -447,18 +447,18 @@ typedef enum _zend_call_kind {
 } zend_call_kind;
 
 struct _zend_execute_data {
-	const zend_op       *opline;           /* executed opline                */
-	zend_execute_data   *call;             /* current call                   */
-	zval                *return_value;
-	zend_function       *func;             /* executed function              */
-	zval                 This;             /* this + call_info + num_args    */
-	zend_execute_data   *prev_execute_data;
-	zend_array          *symbol_table;
+	const zend_op       *opline;           /* executed opline                */ //指向当前执行的opcode，初始时指向zend_op_array起始位置
+	zend_execute_data   *call;             /* current call                   */ //返回值指针
+	zval                *return_value; //返回值 
+	zend_function       *func;             /* executed function              */ //当前执行的函数
+	zval                 This;             /* this + call_info + num_args    */ //这个值并不仅仅是面向对象的this，还有另外两个值也通过这个记录：call_info + num_args，分别存在zval.u1.reserved、zval.u2.num_args
+	zend_execute_data   *prev_execute_data; //函数调用时指向调用位置作用空间
+	zend_array          *symbol_table; //全局变量符号表
 #if ZEND_EX_USE_RUN_TIME_CACHE
 	void               **run_time_cache;   /* cache op_array->run_time_cache */
 #endif
 #if ZEND_EX_USE_LITERALS
-	zval                *literals;         /* cache op_array->literals       */
+	zval                *literals;         /* cache op_array->literals       */ //字面量数组
 #endif
 };
 

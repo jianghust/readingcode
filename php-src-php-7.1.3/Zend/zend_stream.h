@@ -93,7 +93,7 @@ typedef struct __stat64 zend_stat_t;
 # define zend_ftell ftell
 # define zend_lseek lseek
 # define zend_fstat fstat
-# define zend_stat stat
+# define zend_stat stat //系统的stat结构
 typedef struct stat zend_stat_t;
 #endif
 

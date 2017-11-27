@@ -21,15 +21,15 @@
 
 #define ZEND_MM_CHUNK_SIZE (2 * 1024 * 1024)               /* 2 MB  */
 #define ZEND_MM_PAGE_SIZE  (4 * 1024)                      /* 4 KB  */
-#define ZEND_MM_PAGES      (ZEND_MM_CHUNK_SIZE / ZEND_MM_PAGE_SIZE)  /* 512 */
-#define ZEND_MM_FIRST_PAGE (1)
+#define ZEND_MM_PAGES      (ZEND_MM_CHUNK_SIZE / ZEND_MM_PAGE_SIZE)  /* 512 */ //512个页
+#define ZEND_MM_FIRST_PAGE (1) //第一页占用page个数
 
-#define ZEND_MM_MIN_SMALL_SIZE		8
-#define ZEND_MM_MAX_SMALL_SIZE      3072
-#define ZEND_MM_MAX_LARGE_SIZE      (ZEND_MM_CHUNK_SIZE - (ZEND_MM_PAGE_SIZE * ZEND_MM_FIRST_PAGE))
+#define ZEND_MM_MIN_SMALL_SIZE		8 //最小size位8字节
+#define ZEND_MM_MAX_SMALL_SIZE      3072 //small最大的size，3072字节
+#define ZEND_MM_MAX_LARGE_SIZE      (ZEND_MM_CHUNK_SIZE - (ZEND_MM_PAGE_SIZE * ZEND_MM_FIRST_PAGE)) //2044K
 
 /* num, size, count, pages */
-#define ZEND_MM_BINS_INFO(_, x, y) \
+#define ZEND_MM_BINS_INFO(_, x, y) \//四个值的含义依次是：slot编号、slot大小、slot数量、占用page数
 	_( 0,    8,  512, 1, x, y) \
 	_( 1,   16,  256, 1, x, y) \
 	_( 2,   24,  170, 1, x, y) \

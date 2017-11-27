@@ -1187,7 +1187,7 @@ PHPAPI PHP_FUNCTION(fwrite)
 
 	PHP_STREAM_TO_ZVAL(stream, res);
 
-	ret = php_stream_write(stream, input, num_bytes);
+	ret = php_stream_write(stream, input, num_bytes);//写入流
 
 	RETURN_LONG(ret);
 }

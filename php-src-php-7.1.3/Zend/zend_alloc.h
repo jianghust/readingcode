@@ -103,6 +103,7 @@ ZEND_API void* ZEND_FASTCALL _emalloc_huge(size_t size) ZEND_ATTRIBUTE_MALLOC ZE
 # define _ZEND_BIN_ALLOCATOR_SELECTOR_END(_num, _size, _elements, _pages, size, y) \
 	)
 
+//关键的内存分配，如果size大于ZEND_MM_MAX_LARGE_SIZE(2044K,第一个4K的page用于存储chunk信息),则直接分配huge类型内存，否则分配
 # define ZEND_ALLOCATOR(size) \
 	ZEND_MM_BINS_INFO(_ZEND_BIN_ALLOCATOR_SELECTOR_START, size, y) \
 	((size <= ZEND_MM_MAX_LARGE_SIZE) ? _emalloc_large(size) : _emalloc_huge(size)) \

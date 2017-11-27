@@ -2620,6 +2620,7 @@ static void accel_gen_system_id(void)
 # endif
 
 # if defined(MAP_HUGETLB) || defined(MADV_HUGEPAGE)
+//将text字段移动到大页内存中
 static int accel_remap_huge_pages(void *start, size_t size, const char *name, size_t offset)
 {
 	void *ret = MAP_FAILED;

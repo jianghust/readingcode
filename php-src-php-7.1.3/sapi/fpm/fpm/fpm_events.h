@@ -13,14 +13,14 @@
 #define fpm_event_set_timer(ev, flags, cb, arg) fpm_event_set((ev), -1, (flags), (cb), (arg))
 
 struct fpm_event_s {
-	int fd;                   /* not set with FPM_EV_TIMEOUT */
-	struct timeval timeout;   /* next time to trigger */
-	struct timeval frequency;
-	void (*callback)(struct fpm_event_s *, short, void *);
-	void *arg;
+	int fd;                   /* not set with FPM_EV_TIMEOUT */ //没设置,表示定时事件
+	struct timeval timeout;   /* next time to trigger */ //timer事件触发时间点
+	struct timeval frequency;//timer事件触发事件间隔
+	void (*callback)(struct fpm_event_s *, short, void *);//回调函数
+	void *arg; //回调函数参数
 	int flags;
 	int index;                /* index of the fd in the ufds array */
-	short which;              /* type of event */
+	short which;              /* type of event */ //事件类型
 };
 
 typedef struct fpm_event_queue_s {

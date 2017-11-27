@@ -44,7 +44,7 @@ static struct fpm_child_s *fpm_child_alloc() /* {{{ */
 {
 	struct fpm_child_s *ret;
 
-	ret = malloc(sizeof(struct fpm_child_s));
+	ret = malloc(sizeof(struct fpm_child_s));//申请子fpm内存
 
 	if (!ret) {
 		return 0;
@@ -316,7 +316,7 @@ static struct fpm_child_s *fpm_resources_prepare(struct fpm_worker_pool_s *wp) /
 		fpm_child_free(c);
 		return 0;
 	}
-
+	//给每个新的worker进程分配一个可用的统计单元
 	if (0 > fpm_scoreboard_proc_alloc(wp->scoreboard, &c->scoreboard_i)) {
 		fpm_stdio_discard_pipes(c);
 		fpm_child_free(c);
@@ -365,19 +365,19 @@ int fpm_children_make(struct fpm_worker_pool_s *wp, int in_event_loop, int nb_to
 	int max;
 	static int warned = 0;
 
-	if (wp->config->pm == PM_STYLE_DYNAMIC) {
+	if (wp->config->pm == PM_STYLE_DYNAMIC) {//fpm出于动态调整模式
 		if (!in_event_loop) { /* starting */
 			max = wp->config->pm_start_servers;
 		} else {
 			max = wp->running_children + nb_to_spawn;
 		}
-	} else if (wp->config->pm == PM_STYLE_ONDEMAND) {
+	} else if (wp->config->pm == PM_STYLE_ONDEMAND) {//fpm处于请求时才产生进程的模式
 		if (!in_event_loop) { /* starting */
 			max = 0; /* do not create any child at startup */
 		} else {
 			max = wp->running_children + nb_to_spawn;
 		}
-	} else { /* PM_STYLE_STATIC */
+	} else { /* PM_STYLE_STATIC */ //默认静态模式，也即子进程数量固定
 		max = wp->config->pm_max_children;
 	}
 
@@ -397,11 +397,11 @@ int fpm_children_make(struct fpm_worker_pool_s *wp, int in_event_loop, int nb_to
 			return 2;
 		}
 
-		pid = fork();
+		pid = fork(); //启动子进程
 
 		switch (pid) {
 
-			case 0 :
+			case 0 ://子进程
 				fpm_child_resources_use(child);
 				fpm_globals.is_child = 1;
 				fpm_child_init(wp);
@@ -413,7 +413,7 @@ int fpm_children_make(struct fpm_worker_pool_s *wp, int in_event_loop, int nb_to
 				fpm_resources_discard(child);
 				return 2;
 
-			default :
+			default ://master进程
 				child->pid = pid;
 				fpm_clock_get(&child->started);
 				fpm_parent_resources_use(child);
@@ -436,7 +436,7 @@ int fpm_children_make(struct fpm_worker_pool_s *wp, int in_event_loop, int nb_to
 
 int fpm_children_create_initial(struct fpm_worker_pool_s *wp) /* {{{ */
 {
-	if (wp->config->pm == PM_STYLE_ONDEMAND) {
+	if (wp->config->pm == PM_STYLE_ONDEMAND) {//进程在需要的时候才产生的模式
 		wp->ondemand_event = (struct fpm_event_s *)malloc(sizeof(struct fpm_event_s));
 
 		if (!wp->ondemand_event) {

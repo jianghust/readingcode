@@ -1214,7 +1214,7 @@ static int fpm_conf_post_process(int force_daemon) /* {{{ */
 		return -1;
 	}
 
-	if (0 > fpm_log_open(0)) {
+	if (0 > fpm_log_open(0)) {//打开进程文件
 		return -1;
 	}
 

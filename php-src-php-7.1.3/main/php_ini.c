@@ -348,6 +348,7 @@ static void php_load_php_extension_cb(void *arg)
 
 /* {{{ php_load_zend_extension_cb
  */
+//扩展加载方法
 static void php_load_zend_extension_cb(void *arg)
 {
 	char *filename = *((char **) arg);

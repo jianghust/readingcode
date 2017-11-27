@@ -42,7 +42,7 @@ int fpm_log_open(int reopen) /* {{{ */
 		}
 		ret = 0;
 
-		fd = open(wp->config->access_log, O_WRONLY | O_APPEND | O_CREAT, S_IRUSR | S_IWUSR);
+		fd = open(wp->config->access_log, O_WRONLY | O_APPEND | O_CREAT, S_IRUSR | S_IWUSR);//新打开文件
 		if (0 > fd) {
 			zlog(ZLOG_SYSERROR, "failed to open access log (%s)", wp->config->access_log);
 			return -1;
@@ -50,16 +50,16 @@ int fpm_log_open(int reopen) /* {{{ */
 			zlog(ZLOG_DEBUG, "open access log (%s)", wp->config->access_log);
 		}
 
-		if (reopen) {
-			dup2(fd, wp->log_fd);
-			close(fd);
-			fd = wp->log_fd;
-			fpm_pctl_kill_all(SIGQUIT);
+		if (reopen) {//表示是重新打开文件
+			dup2(fd, wp->log_fd);//将文件描述符赋值给master进程
+			close(fd);//关闭旧的文件描述符
+			fd = wp->log_fd;//赋值新的文件描述符
+			fpm_pctl_kill_all(SIGQUIT);//给子进程发消息,杀掉所有子进程，之后master进程进行重启(是否有损?)
 		} else {
 			wp->log_fd = fd;
 		}
 
-		if (0 > fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC)) {
+		if (0 > fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC)) {//更改文件属性
 			zlog(ZLOG_WARNING, "failed to change attribute of access_log");
 		}
 	}
@@ -100,7 +100,7 @@ int fpm_log_init_child(struct fpm_worker_pool_s *wp)  /* {{{ */
 int fpm_log_write(char *log_format) /* {{{ */
 {
 	char *s, *b;
-	char buffer[FPM_LOG_BUFFER+1];
+	char buffer[FPM_LOG_BUFFER+1];//1024
 	int token, test;
 	size_t len, len2;
 	struct fpm_scoreboard_proc_s proc, *proc_p;

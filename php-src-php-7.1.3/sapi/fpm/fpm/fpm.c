@@ -43,7 +43,7 @@ struct fpm_globals_s fpm_globals = {
 	.send_config_pipe = {0, 0},
 };
 
-int fpm_init(int argc, char **argv, char *config, char *prefix, char *pid, int test_conf, int run_as_root, int force_daemon, int force_stderr) /* {{{ */
+int fpm_init(int argc, char **argv, char *config, char *prefix, char *pid, int test_conf, int run_as_root, int force_daemon, int force_stderr) /* {{{ */ //php-fpm初始化
 {
 	fpm_globals.argc = argc;
 	fpm_globals.argv = argv;
@@ -59,7 +59,7 @@ int fpm_init(int argc, char **argv, char *config, char *prefix, char *pid, int t
 	    0 > fpm_stdio_init_main()         ||
 	    0 > fpm_conf_init_main(test_conf, force_daemon) ||
 	    0 > fpm_unix_init_main()          ||
-	    0 > fpm_scoreboard_init_main()    ||
+	    0 > fpm_scoreboard_init_main()    ||//php-fpm进程相关统计信息初始化
 	    0 > fpm_pctl_init_main()          ||
 	    0 > fpm_env_init_main()           ||
 	    0 > fpm_signals_init_main()       ||
@@ -112,7 +112,7 @@ int fpm_run(int *max_requests) /* {{{ */
 	}
 
 	/* run event loop forever */
-	fpm_event_loop(0);
+	fpm_event_loop(0);//master进程进入死循环等待
 
 run_child: /* only workers reach this point */
 

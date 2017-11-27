@@ -210,7 +210,7 @@ void fpm_scoreboard_release(struct fpm_scoreboard_s *scoreboard) {
 	scoreboard->lock = 0;
 }
 
-struct fpm_scoreboard_proc_s *fpm_scoreboard_proc_acquire(struct fpm_scoreboard_s *scoreboard, int child_index, int nohang) /* {{{ */
+struct fpm_scoreboard_proc_s *fcepalm]pm_scoreboard_proc_acquire(struct fpm_scoreboard_s *scoreboard, int child_index, int nohang) /* {{{ */
 {
 	struct fpm_scoreboard_proc_s *proc;
 
@@ -302,7 +302,7 @@ int fpm_scoreboard_proc_alloc(struct fpm_scoreboard_s *scoreboard, int *child_in
 
 	if (i < 0) { /* the supposed free slot is not, let's search for a free slot */
 		zlog(ZLOG_DEBUG, "[pool %s] the proc->free_slot was not free. Let's search", scoreboard->pool);
-		for (i = 0; i < (int)scoreboard->nprocs; i++) {
+		for (i = 0; i < (int)scoreboard->nprocs; i++) {//判断对应位置的元素是否可用
 			if (scoreboard->procs[i] && !scoreboard->procs[i]->used) { /* found */
 				break;
 			}
@@ -315,10 +315,11 @@ int fpm_scoreboard_proc_alloc(struct fpm_scoreboard_s *scoreboard, int *child_in
 		return -1;
 	}
 
-	scoreboard->procs[i]->used = 1;
+	scoreboard->procs[i]->used = 1;//表示正在使用
 	*child_index = i;
 
 	/* supposed next slot is free */
+	//重置寻找下一个控线单元的起始下标
 	if (i + 1 >= (int)scoreboard->nprocs) {
 		scoreboard->free_proc = 0;
 	} else {

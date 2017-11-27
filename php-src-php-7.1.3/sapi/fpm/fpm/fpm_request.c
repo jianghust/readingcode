@@ -223,7 +223,7 @@ void fpm_request_finished() /* {{{ */
 }
 /* }}} */
 
-void fpm_request_check_timed_out(struct fpm_child_s *child, struct timeval *now, int terminate_timeout, int slowlog_timeout) /* {{{ */
+void fpm_request_check_timed_out(struct fpm_child_s *child, struct timeval *now, int terminate_timeout, int slowlog_timeout) /* {{{ */ //校验请求是否超时
 {
 	struct fpm_scoreboard_proc_s proc, *proc_p;
 

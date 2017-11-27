@@ -102,7 +102,7 @@ PHPAPI php_stream *_php_stream_xport_create(const char *name, size_t namelen, in
 		name = p + 3;
 		namelen -= n + 3;
 	} else {
-		protocol = "tcp";
+		protocol = "tcp";//默认为tcp协议
 		n = 3;
 	}
 
