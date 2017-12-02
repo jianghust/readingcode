@@ -269,6 +269,7 @@ main(int argc, char *const *argv)
     init_cycle.log = log;
     ngx_cycle = &init_cycle;
 
+	//初始化内存池
     init_cycle.pool = ngx_create_pool(1024, log);
     if (init_cycle.pool == NULL) {
         return 1;
@@ -302,7 +303,7 @@ main(int argc, char *const *argv)
         return 1;
     }
 
-	//如果有端口冲突，此处会初始化失败
+	//此处会初始化监听端口,如果有端口冲突，此处会初始化失败
     cycle = ngx_init_cycle(&init_cycle);
     if (cycle == NULL) {
         if (ngx_test_config) {
@@ -350,20 +351,24 @@ main(int argc, char *const *argv)
     ccf = (ngx_core_conf_t *) ngx_get_conf(cycle->conf_ctx, ngx_core_module);
 
     if (ccf->master && ngx_process == NGX_PROCESS_SINGLE) {
+		//在这里会把进程模式设置为MASTER模式
         ngx_process = NGX_PROCESS_MASTER;
     }
 
 #if !(NGX_WIN32)
 
+	//信号初始化，开始监听信号
     if (ngx_init_signals(cycle->log) != NGX_OK) {
         return 1;
     }
 
+	//普通正常情况启动nginx的时候
     if (!ngx_inherited && ccf->daemon) {
+		//此处会fork出一个真正的master进程,./sbin/nginx命令的启动的nginx进程会exit(0)退出
         if (ngx_daemon(cycle->log) != NGX_OK) {
             return 1;
         }
-
+		//守护进程是否已经初始化,即master进程
         ngx_daemonized = 1;
     }
 

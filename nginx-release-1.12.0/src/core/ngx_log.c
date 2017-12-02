@@ -314,15 +314,18 @@ ngx_log_errno(u_char *buf, u_char *last, ngx_err_t err)
 }
 
 
+//初始化日志记录模块，prefix是当初我们输入的-p  后面的值 ，或者默认的程序运行所在目录
 ngx_log_t *
 ngx_log_init(u_char *prefix)
 {
     u_char  *p, *name;
     size_t   nlen, plen;
 
+	 //ngx_log_file定义在core/ngx_log.c文件当中，ngx_log_file是全局静态变量ngx_open_file_s，ngx_log_file是全局静态变量
     ngx_log.file = &ngx_log_file;
     ngx_log.log_level = NGX_LOG_NOTICE;
 
+	//NGX_ERROR_LOG_PATH是错误日志记录所在路径,NGX_ERROR_LOG_PATH默认是logs/error.log
     name = (u_char *) NGX_ERROR_LOG_PATH;
 
     /*
@@ -333,6 +336,7 @@ ngx_log_init(u_char *prefix)
     nlen = ngx_strlen(name);
 
     if (nlen == 0) {
+		 //如果没有指定，则会输出在控制台上
         ngx_log_file.fd = ngx_stderr;
         return &ngx_log;
     }
@@ -342,14 +346,16 @@ ngx_log_init(u_char *prefix)
 #if (NGX_WIN32)
     if (name[1] != ':') {
 #else
+	//在linux平台下第一个应该是/
     if (name[0] != '/') {
 #endif
-
         if (prefix) {
+		 //如果在nginx启动的时候设置了p参数，也就是指定了prefix
             plen = ngx_strlen(prefix);
 
         } else {
 #ifdef NGX_PREFIX
+			//如果没有指定，则需要将默认的路径，作为日志路径
             prefix = (u_char *) NGX_PREFIX;
             plen = ngx_strlen(prefix);
 #else
@@ -357,6 +363,8 @@ ngx_log_init(u_char *prefix)
 #endif
         }
 
+		//如果plen不是0，plen要么是-p参数指定的路径的长度，要么是，NGX_PREFIX的目录路径字符串的长度
+        //前缀的长度和NGX_ERROR_LOG_PATH的长度之和也就是我们已有的路径和logs/error.log的叠加
         if (plen) {
             name = malloc(plen + nlen + 2);
             if (name == NULL) {
@@ -374,7 +382,7 @@ ngx_log_init(u_char *prefix)
             p = name;
         }
     }
-
+	//由prefix作为前缀，由NGX_ERROR_LOG_PATH（/logs/error.log）作为后缀组合成绝对路径，而且，在ngx_log_file中只对文件描述符进行记录
     ngx_log_file.fd = ngx_open_file(name, NGX_FILE_APPEND,
                                     NGX_FILE_CREATE_OR_OPEN,
                                     NGX_FILE_DEFAULT_ACCESS);
@@ -393,6 +401,7 @@ ngx_log_init(u_char *prefix)
     }
 
     if (p) {
+		//释放文件名称，因为我们已经记录下了文件描述符了
         ngx_free(p);
     }
 

@@ -54,13 +54,25 @@ typedef struct {
     char *const  *envp;
 } ngx_exec_ctx_t;
 
-//最多子进程个数
+//最多子进程个数,为何是1024个?
 #define NGX_MAX_PROCESSES         1024
 
+//NGX_PROCESS_JUST_RESPAWN标识最终会在ngx_spawn_process()创建worker进程时，将ngx_processes[s].just_spawn = 1，以此作为区别旧的worker进程的标记。
+//cache loader会用到，当第一次启动的时候，使用NGX_PROCESS_NORESPAWN，就是启动一个进程执行ngx_cache_manager_process_cycle.但需要注意和上面的DETACHED的区别，因为在nginx里，一般父子进程都有很多管道通讯，只有DETACHED的模式下没有pipe通讯，这个NORESPAWN是保留了和父进程的管道通讯的
 #define NGX_PROCESS_NORESPAWN     -1
+//用于cache manager
 #define NGX_PROCESS_JUST_SPAWN    -2
+//这个是最常规的操作，fork worker进程的时候设置这个标志，当worker进程因为意外退出的时候，master进程会执行再生(respawn)操作。
 #define NGX_PROCESS_RESPAWN       -3
+/*
+ * just是刚刚的意思，刚刚spawn出来的，用于更新配置的时候，因为更新配置执行如下的步骤
+ * 1.master加载新配置文件
+ * 2.fork新的worker进程
+ * 3.给使用旧配置文件的worker进程发QUIT信号
+第二步fork进程的时候腰加上NGX_PROCESS_JUST_RESPAWN这个标志，用于给第三步区分哪些是旧进程，哪些是新欢。
+*/
 #define NGX_PROCESS_JUST_RESPAWN  -4
+//这是说fork出来的进程和父进程没有管理的关系，比如nginx的master升级（老版本有bug），新的master从旧的mastr fork出来，就需要这样的标志，fork出来后和父进程没啥关系
 #define NGX_PROCESS_DETACHED      -5
 
 

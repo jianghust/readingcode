@@ -12,6 +12,11 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 
+/*
+ *能够执行原子操作的原子变量只有整型，包括无符号整型ngx_atomic_ uint_t和有符号整型ngx_atomic_t，这两种类型都使用了volatile关键字告诉C编译器不要做优化
+ * 想要使用原子操作来修改、获取整型变量，自然不能使用加减号，而要使用Nginx提供的两个方法：ngx_atomic_cmp_set和ngx_atomic_fetch_add。
+ *这两个方法都可以用来修改原子变量的值，而ngx_atomic_cmp_set方法同时还可以比较原子变量的值
+ */
 
 #if (NGX_HAVE_LIBATOMIC)
 

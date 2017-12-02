@@ -43,6 +43,31 @@ typedef union epoll_data {
 } epoll_data_t;
 
 struct epoll_event {
+/*
+epoll_event中events的取值意义
+┏━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃    events取值  ┃    意义                                                                      ┃
+┣━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃EPOLLIN         ┃                                                                              ┃
+┃                ┃  表示对应的连接上有数据可以读出（TCP连接的远端主动关闭连接，也相当于可读事   ┃
+┃                ┃件，因为需要处理发送来的FIN包）                                               ┃
+┣━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃EPOLLOUT        ┃  表示对应的连接上可以写入数据发送（主动向上游服务器发起非阻塞的TCP连接，连接 ┃
+┃                ┃建立成功的事件相当于可写事件）                                                ┃
+┣━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃EPOLLRDHUP      ┃  表示TCP连接的远端关闭或半关闭连接                                           ┃
+┣━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃EPOLLPRI        ┃  表示对应的连接上有紧急数据需要读                                            ┃
+┣━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃EPOLLERR        ┃  表示对应的连接发生错误                                                      ┃
+┣━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃EPOLLHUP        ┃  表示对应的连接被挂起                                                        ┃
+┣━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃EPOLLET         ┃  表示将触发方式设置妁边缘触发(ET)，系统默认为水平触发(L1’)                  ┃
+┣━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃EPOLLONESHOT    ┃  表示对这个事件只处理一次，下次需要处理时需重新加入epoll                     ┃
+┗━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+*/
     uint32_t      events;
     epoll_data_t  data;
 };
@@ -780,6 +805,9 @@ ngx_epoll_notify(ngx_event_handler_pt handler)
 #endif
 
 
+//ngx_epoll_process_events注册到ngx_process_events的
+//和ngx_epoll_add_event配合使用
+//该函数在ngx_process_events_and_timers中调用
 static ngx_int_t
 ngx_epoll_process_events(ngx_cycle_t *cycle, ngx_msec_t timer, ngx_uint_t flags)
 {
@@ -797,10 +825,14 @@ ngx_epoll_process_events(ngx_cycle_t *cycle, ngx_msec_t timer, ngx_uint_t flags)
     ngx_log_debug1(NGX_LOG_DEBUG_EVENT, cycle->log, 0,
                    "epoll timer: %M", timer);
 
+	//event_list存储的是就绪好的事件，如果是select则是传入用户注册的事件，需要遍历检查，而且每次select返回后需要重新设置事件集，epoll不用
+	//EPOLL_WAIT如果没有读写事件或者定时器超时事件发生，则会进入睡眠，这个过程会让出CPU
+	//ngx_notify->ngx_epoll_notify只会触发epoll_in，不会同时引发epoll_out，如果是网络读事件epoll_in,则会同时引起epoll_out
     events = epoll_wait(ep, event_list, (int) nevents, timer);
 
     err = (events == -1) ? ngx_errno : 0;
 
+	//当flags标志位指示要更新时间时，就是在这里更新的
     if (flags & NGX_UPDATE_TIME || ngx_event_timer_alarm) {
         ngx_time_update();
     }
@@ -808,6 +840,7 @@ ngx_epoll_process_events(ngx_cycle_t *cycle, ngx_msec_t timer, ngx_uint_t flags)
     if (err) {
         if (err == NGX_EINTR) {
 
+			//定时器超时引起的epoll_wait返回
             if (ngx_event_timer_alarm) {
                 ngx_event_timer_alarm = 0;
                 return NGX_OK;
@@ -833,14 +866,20 @@ ngx_epoll_process_events(ngx_cycle_t *cycle, ngx_msec_t timer, ngx_uint_t flags)
         return NGX_ERROR;
     }
 
+	//遍历本次epoll_wait返回的所有事件,和ngx_epoll_add_event配合使用
     for (i = 0; i < events; i++) {
+		//对照着上面提到的ngx_epoll_add_event方法，可以看到ptr成员就是ngx_connection_t连接的地址，但最后1位有特殊含义，需要把它屏蔽掉
         c = event_list[i].data.ptr;
-
+		//将地址的最后一位取出来，用instance变量标识, 见ngx_epoll_add_event
         instance = (uintptr_t) c & 1;
+		//注意这里的c有可能是accept前的c，用于检测是否客户端发起tcp连接事件,accept返回成功后会重新创建一个ngx_connection_t，用来读写客户端的数据
         c = (ngx_connection_t *) ((uintptr_t) c & (uintptr_t) ~1);
 
+		//取出读事件
         rev = c->read;
 
+		//判断这个读事件是否为过期事件
+		//当fd套接字描述符为-l或者instance标志位不相等时，表示这个事件已经过期了，不用处理
         if (c->fd == -1 || rev->instance != instance) {
 
             /*
@@ -853,12 +892,14 @@ ngx_epoll_process_events(ngx_cycle_t *cycle, ngx_msec_t timer, ngx_uint_t flags)
             continue;
         }
 
+		//取出事件类型
         revents = event_list[i].events;
 
         ngx_log_debug3(NGX_LOG_DEBUG_EVENT, cycle->log, 0,
                        "epoll: fd:%d ev:%04XD d:%p",
                        c->fd, revents, event_list[i].data.ptr);
 
+		//例如对方close掉套接字，这里会感应到
         if (revents & (EPOLLERR|EPOLLHUP)) {
             ngx_log_debug2(NGX_LOG_DEBUG_EVENT, cycle->log, 0,
                            "epoll_wait() error on fd:%d ev:%04XD",
@@ -869,6 +910,7 @@ ngx_epoll_process_events(ngx_cycle_t *cycle, ngx_msec_t timer, ngx_uint_t flags)
              * to handle the events at least in one active handler
              */
 
+			//epoll EPOLLERR|EPOLLHUP实际上是通过触发读写事件进行读写操作recv write来检测连接异常
             revents |= EPOLLIN|EPOLLOUT;
         }
 
@@ -880,6 +922,7 @@ ngx_epoll_process_events(ngx_cycle_t *cycle, ngx_msec_t timer, ngx_uint_t flags)
         }
 #endif
 
+		//如果是读事件且该事件是活跃的
         if ((revents & EPOLLIN) && rev->active) {
 
 #if (NGX_HAVE_EPOLLRDHUP)
@@ -890,8 +933,13 @@ ngx_epoll_process_events(ngx_cycle_t *cycle, ngx_msec_t timer, ngx_uint_t flags)
             rev->available = 1;
 #endif
 
+			//表示已经有数据到了这里只是把accept成功前的 ngx_connection_t->read->ready置1，accept返回后会重新从连接池中获取一个ngx_connection_t
             rev->ready = 1;
 
+			/*
+			 * 如果要在post队列中延后处理该事件，首先要判断它是新连接事件还是普通事件，以决定把它加入
+			 * 到ngx_posted_accept_events队列或者ngx_postedL events队列中。关于post队列中的事件何时执行
+			 */
             if (flags & NGX_POST_EVENTS) {
                 queue = rev->accept ? &ngx_posted_accept_events
                                     : &ngx_posted_events;
@@ -899,12 +947,15 @@ ngx_epoll_process_events(ngx_cycle_t *cycle, ngx_msec_t timer, ngx_uint_t flags)
                 ngx_post_event(rev, queue);
 
             } else {
+				//如果接收到客户端数据，这里为ngx_http_wait_request_handler
+				//如果为还没accept，则为ngx_event_process_init中设置为ngx_event_accept。如果已经建立连接，则读数据为ngx_http_process_request_line
                 rev->handler(rev);
             }
         }
 
         wev = c->write;
 
+		//判断这个读事件是否为过期事件
         if ((revents & EPOLLOUT) && wev->active) {
 
             if (c->fd == -1 || wev->instance != instance) {
@@ -924,10 +975,12 @@ ngx_epoll_process_events(ngx_cycle_t *cycle, ngx_msec_t timer, ngx_uint_t flags)
             wev->complete = 1;
 #endif
 
+			//将这个事件添加到post队列中延后处理
             if (flags & NGX_POST_EVENTS) {
                 ngx_post_event(wev, &ngx_posted_events);
 
             } else {
+				//立即调用这个写事件的回调方法来处理这个事件
                 wev->handler(wev);
             }
         }
@@ -938,7 +991,7 @@ ngx_epoll_process_events(ngx_cycle_t *cycle, ngx_msec_t timer, ngx_uint_t flags)
 
 
 #if (NGX_HAVE_FILE_AIO)
-
+//该函数在ngx_process_events_and_timers中执行,从epoll_wait中检测到aio读成功事件，则走到这里
 static void
 ngx_epoll_eventfd_handler(ngx_event_t *ev)
 {
@@ -953,6 +1006,7 @@ ngx_epoll_eventfd_handler(ngx_event_t *ev)
 
     ngx_log_debug0(NGX_LOG_DEBUG_EVENT, ev->log, 0, "eventfd handler");
 
+	//获取已经完成的事件数目，并设置到ready中，注意，这个ready是可以大于64的
     n = read(ngx_eventfd, &ready, 8);
 
     err = ngx_errno;
@@ -977,16 +1031,20 @@ ngx_epoll_eventfd_handler(ngx_event_t *ev)
     ts.tv_sec = 0;
     ts.tv_nsec = 0;
 
+	//ready表示还未处理的事件。当ready大于0时继续处理
     while (ready) {
 
+		//调用io_getevents获取已经完成的异步I/O事件
         events = io_getevents(ngx_aio_ctx, 1, 64, event, &ts);
 
         ngx_log_debug1(NGX_LOG_DEBUG_EVENT, ev->log, 0,
                        "io_getevents: %d", events);
 
         if (events > 0) {
+			//将ready减去已经取出的事件
             ready -= events;
 
+			//处理event数组里的事件
             for (i = 0; i < events; i++) {
 
                 ngx_log_debug4(NGX_LOG_DEBUG_EVENT, ev->log, 0,
@@ -1003,6 +1061,7 @@ ngx_epoll_eventfd_handler(ngx_event_t *ev)
                 aio = e->data;
                 aio->res = event[i].res;
 
+				//将该事件放到ngx_posted_events队列中延后执行,执行该队列的handle地方见ngx_process_events_and_timers
                 ngx_post_event(e, &ngx_posted_events);
             }
 

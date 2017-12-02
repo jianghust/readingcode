@@ -8,7 +8,7 @@
 #include <ngx_config.h>
 #include <ngx_core.h>
 
-
+//nginx以后台进程的方式工作，通常情况下，都是使用后台进程的方式工作
 ngx_int_t
 ngx_daemon(ngx_log_t *log)
 {
@@ -19,10 +19,10 @@ ngx_daemon(ngx_log_t *log)
         ngx_log_error(NGX_LOG_EMERG, log, ngx_errno, "fork() failed");
         return NGX_ERROR;
 
-    case 0:
+    case 0://子进程返回的是0,会走此逻辑
         break;
 
-    default:
+    default://父进程中默认会返回子进程的pid,也即走此逻辑,也即启动时候的进程在此处会退出
         exit(0);
     }
 
@@ -32,7 +32,7 @@ ngx_daemon(ngx_log_t *log)
         ngx_log_error(NGX_LOG_EMERG, log, ngx_errno, "setsid() failed");
         return NGX_ERROR;
     }
-
+	//创建文件权限相关,0777 & mode,给后面的代码调用函数给出最大的权限
     umask(0);
 
     fd = open("/dev/null", O_RDWR);

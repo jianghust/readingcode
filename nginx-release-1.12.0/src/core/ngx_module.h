@@ -235,8 +235,9 @@ struct ngx_module_s {
     ngx_command_t        *commands;
     ngx_uint_t            type;
 
+	//虽然从字面上理解应当在master进程启动时回调init_master，但到目前为止，框架代码从来不会调用它，因此，可将init_master设为NULL
     ngx_int_t           (*init_master)(ngx_log_t *log);
-
+	/*init_module回调方法在初始化所有模块时被调用。在master/worker模式下，这个阶段将在启动worker子进程前完成*/
     ngx_int_t           (*init_module)(ngx_cycle_t *cycle);
 
     ngx_int_t           (*init_process)(ngx_cycle_t *cycle);

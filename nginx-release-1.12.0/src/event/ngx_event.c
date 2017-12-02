@@ -35,25 +35,54 @@ static void *ngx_event_core_create_conf(ngx_cycle_t *cycle);
 static char *ngx_event_core_init_conf(ngx_cycle_t *cycle, void *conf);
 
 
+/*
+nginx提供参数timer_resolution，设置缓存时间更新的间隔；
+配置该项后，nginx将使用中断机制，而非使用定时器红黑树中的最小时间为epoll_wait的超时时间，即此时定时器将定期被中断。
+timer_resolution指令的使用将会设置epoll_wait超时时间为-1，这表示epoll_wait将永远阻塞直至读写事件发生或信号中断。
+
+如果配置文件中使用了timer_ resolution配置项，也就是ngx_timer_resolution值大于0，则说明用；户希望服务器时间精确度为ngx_timer_resolution毫秒
+
+*/ //ngx_timer_signal_handler定时器超时通过该值设置       如果设置了这个，则epoll_wait的返回是由定时器中断引起
+//定时器设置在ngx_event_process_init，定时器生效在ngx_process_events_and_timers -> ngx_process_events
+//从timer_resolution全局配置中解析到的参数,表示多少ms执行定时器中断，然后epoll_wail会返回跟新内存时间
 static ngx_uint_t     ngx_timer_resolution;
+//ngx_event_timer_alarm只是个全局变量，当它设为l时，表示需要更新时间。
 sig_atomic_t          ngx_event_timer_alarm;
 
+//gx_event_max_module是编译进Nginx的所有事件模块的总个数
 static ngx_uint_t     ngx_event_max_module;
 
+//位图表示，见NGX_USE_FD_EVENT等  初始化见ngx_epoll_init
 ngx_uint_t            ngx_event_flags;
+//ngx_event_actions = ngx_epoll_module_ctx.actions;
 ngx_event_actions_t   ngx_event_actions;
 
 
 static ngx_atomic_t   connection_counter = 1;
+//原子变量类型的ngx_connection_counter将统计所有建立过的连接数（包括主动发起的连接） 是总的连接数，不是某个进程的，是所有进程的，因为他们是共享内存的
 ngx_atomic_t         *ngx_connection_counter = &connection_counter;
 
-
+//指向共享的内存空间，见ngx_event_module_init
 ngx_atomic_t         *ngx_accept_mutex_ptr;
+/*
+ * ngx_accept_mutex为共享内存互斥锁,获取到该锁的进程才会接受客户端的accept请求
+ * 共享内存的空间  在建连接的时候，为了避免惊群，在accept的时候，只有获取到该原子锁，才把accept添加到epoll事件中，见ngx_trylock_accept_mutex
+ */
 ngx_shmtx_t           ngx_accept_mutex;
+//ngx_use_accept_mutex表示是否需要通过对accept加锁来解决惊群问题。当nginx worker进程数>1时且配置文件中打开accept_mutex时，这个标志置为1
+//具体实现:在创建子线程的时候，在执行ngx_event_process_init时并没有添加到epoll读事件中，worker抢到accept互斥体后，再放入epoll
+//ccf->master && ccf->worker_processes > 1 && ecf->accept_mutex 条件满足才会置该标记为1,会把ngx_use_accept_mutex置为1，可以避免惊群。赋值在ngx_event_process_init
 ngx_uint_t            ngx_use_accept_mutex;
+//只有eventport会用到该变量
 ngx_uint_t            ngx_accept_events;
+//1表示当前获取了ngx_accept_mutex锁   0表示当前并没有获取到ngx_accept_mutex锁
 ngx_uint_t            ngx_accept_mutex_held;
+//如果没获取到mutex锁，则延迟这么多毫秒重新获取。accept_mutex_delay配置，单位500ms
 ngx_msec_t            ngx_accept_mutex_delay;
+/*
+ngx_accept_disabled表示此时满负荷，没必要再处理新连接了，在nginx.conf配置了每一个nginx worker进程能够处理的最大连接数，
+当达到最大数的7/8时，ngx_accept_disabled为正，说明本nginx worker进程非常繁忙，将不再去处理新连接，这也是个简单的负载均衡
+*/
 ngx_int_t             ngx_accept_disabled;
 
 
@@ -589,6 +618,12 @@ ngx_event_process_init(ngx_cycle_t *cycle)
     ccf = (ngx_core_conf_t *) ngx_get_conf(cycle->conf_ctx, ngx_core_module);
     ecf = ngx_event_get_conf(cycle->conf_ctx, ngx_event_core_module);
 
+    /*
+         当打开accept_mutex负载均衡锁，同时使用了master模式并且worker迸程数量大于1时，才正式确定了进程将使用accept_mutex负载均衡锁。
+     因此，即使我们在配置文件中指定打开accept_mutex锁，如果没有使用master模式或者worker进程数量等于1，进程在运行时还是不会使用
+     负载均衡锁（既然不存在多个进程去抢一个监听端口上的连接的情况，那么自然不需要均衡多个worker进程的负载）。
+         这时会将ngx_use_accept_mutex全局变量置为1，ngx_accept_mutex_held标志设为0，ngx_accept_mutex_delay则设为在配置文件中指定的最大延迟时间。
+     */
     if (ccf->master && ccf->worker_processes > 1 && ecf->accept_mutex) {
         ngx_use_accept_mutex = 1;
         ngx_accept_mutex_held = 0;
@@ -1295,6 +1330,7 @@ ngx_event_core_init_conf(ngx_cycle_t *cycle, void *conf)
     ngx_conf_init_ptr_value(ecf->name, event_module->name->data);
 
     ngx_conf_init_value(ecf->multi_accept, 0);
+	//从1.11.3版本开始，accept_mutex默认值从1开始变为0,主要是epoll已经解决了epoll_wait惊群问题
     ngx_conf_init_value(ecf->accept_mutex, 0);
     ngx_conf_init_msec_value(ecf->accept_mutex_delay, 500);
 

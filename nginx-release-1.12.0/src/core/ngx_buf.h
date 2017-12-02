@@ -18,38 +18,57 @@ typedef void *            ngx_buf_tag_t;
 typedef struct ngx_buf_s  ngx_buf_t;
 
 struct ngx_buf_s {
+	//处理内存告诉使用者，本次处理应该从pos位置开始处理数据
     u_char          *pos;
+	//处理内存表示该buf的 有效数据到last为止
     u_char          *last;
+	//处理文件时应该从该位置开始
     off_t            file_pos;
+	//处理文件时应该到此结束
     off_t            file_last;
 
+	//buf的起始位置
     u_char          *start;         /* start of buffer */
+	//buf的结束位置
     u_char          *end;           /* end of buffer */
+	//表示当前缓冲区的类型，那个模块使用，tag指向该模块的ngx_module_t变量地址
     ngx_buf_tag_t    tag;
+	//引用的文件
     ngx_file_t      *file;
+	//该缓冲区的影子缓冲区，也就是多个ngx_buf_t可能指向的是同一块内存，shadow指向的是多个指针，不怎么使用
     ngx_buf_t       *shadow;
 
 
     /* the buf's content could be changed */
+	//为1时temporary表示是整形变量，后面的1表示只占据1位，数据在内存中可以修改
     unsigned         temporary:1;
 
     /*
      * the buf's content is in a memory cache or in a read only memory
      * and must not be changed
      */
+	//为1时表示数据不可修改
     unsigned         memory:1;
 
     /* the buf's content is mmap()ed and must not be changed */
+	//为1时表示内存使用mmap系统调用映射过来的，不可修改
     unsigned         mmap:1;
 
+	//为1时表示，可以回收
     unsigned         recycled:1;
+	//为1时标书这段缓冲区处理的是文件而不是内存
     unsigned         in_file:1;
+	//为1时表示需要进行flush操作
     unsigned         flush:1;
+	//为1表示是否使用同步方式，谨慎使用
     unsigned         sync:1;
+	//是否是最后一块缓冲区，因为ngx_buf_t可以用ngx_chain_t串联起来
     unsigned         last_buf:1;
+	//是否是ngx_chain_t中的最后一块
     unsigned         last_in_chain:1;
 
     unsigned         last_shadow:1;
+	//是否是临时文件
     unsigned         temp_file:1;
 
     /* STUB */ int   num;

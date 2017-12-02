@@ -64,6 +64,7 @@ ngx_os_init(ngx_log_t *log)
 
     ngx_cpuinfo();
 
+	//指定比进程可打开的最大文件描述词大一的值
     if (getrlimit(RLIMIT_NOFILE, &rlmt) == -1) {
         ngx_log_error(NGX_LOG_ALERT, log, errno,
                       "getrlimit(RLIMIT_NOFILE) failed");

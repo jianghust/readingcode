@@ -58,21 +58,30 @@ ngx_event_accept(ngx_event_t *ev)
                    "accept on %V, ready: %d", &ls->addr_text, ev->available);
 
     do {
+		//如果是一次读取一个accept事件的话，循环体只执行一次， 如果是一次性可以读取所有的accept事件，则这个循环体执行次数为accept事件数
         socklen = sizeof(ngx_sockaddr_t);
 
 #if (NGX_HAVE_ACCEPT4)
+		//ngx_close_socket可以关闭套接字
         if (use_accept4) {
             s = accept4(lc->fd, &sa.sockaddr, &socklen, SOCK_NONBLOCK);
         } else {
             s = accept(lc->fd, &sa.sockaddr, &socklen);
         }
 #else
+		/*
+            针对非阻塞I/O执行的系统调用则总是立即返回，而不管事件足否已经发生。如果事件没有立即发生，这些系统调用就
+        返回—1．和出错的情况一样。此时我们必须根据errno来区分这两种情况。对accept、send和recv而言，事件未发牛时errno
+        通常被设置成EAGAIN（意为“再来一次”）或者EWOULDBLOCK（意为“期待阻塞”）：对conncct而言，errno则被设置成EINPROGRESS（意为“在处理中"）。
+          */
         s = accept(lc->fd, &sa.sockaddr, &socklen);
 #endif
 
         if (s == (ngx_socket_t) -1) {
             err = ngx_socket_errno;
 
+			//如果要去一次性读取所有的accept信息，当读取完毕后，通过这里返回。所有的accept事件都读取完毕
+			//如果event{}开启multi_accept，则在accept完成listen ip:port对应的ip和端口连接后，会通过这里返回
             if (err == NGX_EAGAIN) {
                 ngx_log_debug0(NGX_LOG_DEBUG_EVENT, ev->log, err,
                                "accept() not ready");
@@ -181,7 +190,7 @@ ngx_event_accept(ngx_event_t *ev)
         /* set a blocking mode for iocp and non-blocking mode for others */
 
         if (ngx_inherited_nonblocking) {
-            if (ngx_event_flags & NGX_USE_IOCP_EVENT) {
+            ngx_event_process_initif (ngx_event_flags & NGX_USE_IOCP_EVENT) {
                 if (ngx_blocking(s) == -1) {
                     ngx_log_error(NGX_LOG_ALERT, ev->log, ngx_socket_errno,
                                   ngx_blocking_n " failed");

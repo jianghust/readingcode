@@ -48,7 +48,9 @@ sig_atomic_t  ngx_reopen;
 //平滑升级到新版本的nginx程序
 sig_atomic_t  ngx_change_binary;
 ngx_pid_t     ngx_new_binary;
+//是否是从旧master进行启动,需要继承上一个master相关的一些参数
 ngx_uint_t    ngx_inherited;
+//守护进程是否已经初始化，一般就指master进程
 ngx_uint_t    ngx_daemonized;
 //所有子进程不再接受处理新的连接，实际相当于对所有的子进程发送QUIT信号量
 sig_atomic_t  ngx_noaccept;
@@ -73,7 +75,16 @@ static ngx_log_t        ngx_exit_log;
 static ngx_open_file_t  ngx_exit_log_file;
 
 
-//进入主进程的工作循环
+/*
+ngx_master_process_cycle 调 用 ngx_start_worker_processes生成多个工作子进程，ngx_start_worker_processes 调 用 ngx_worker_process_cycle
+创建工作内容，如果进程有多个子线程，这里也会初始化线程和创建线程工作内容，初始化完成之后，ngx_worker_process_cycle
+会进入处理循环，调用 ngx_process_events_and_timers ， 该 函 数 调 用 ngx_process_events监听事件，
+并把事件投递到事件队列ngx_posted_events 中 ， 最 终 会 在 ngx_event_thread_process_posted中处理事件。
+master进程不需要处理网络事件，它不负责业务的执行，只会通过管理worker等子进
+程来实现重启服务、平滑升级、更换日志文件、配置文件实时生效等功能
+*/
+
+//如果是多进程方式启动，就会调用ngx_master_process_cycle完成最后的启动动作
 void
 ngx_master_process_cycle(ngx_cycle_t *cycle)
 {
@@ -101,6 +112,21 @@ ngx_master_process_cycle(ngx_cycle_t *cycle)
     sigaddset(&set, ngx_signal_value(NGX_SHUTDOWN_SIGNAL));
     sigaddset(&set, ngx_signal_value(NGX_CHANGEBIN_SIGNAL));
 
+    /*
+     每个进程有一个信号掩码(signal mask)。简单地说，信号掩码是一个“位图”，其中每一位都对应着一种信号
+     如果位图中的某一位为1，就表示在执行当前信号的处理程序期间相应的信号暂时被“屏蔽”，使得在执行的过程中不会嵌套地响应那种信号。
+
+     为什么对某一信号进行屏蔽呢？我们来看一下对CTRL_C的处理。大家知道，当一个程序正在运行时，在键盘上按一下CTRL_C，内核就会向相应的进程
+     发出一个SIGINT 信号，而对这个信号的默认操作就是通过do_exit()结束该进程的运行。但是，有些应用程序可能对CTRL_C有自己的处理，所以就要
+     为SIGINT另行设置一个处理程序，使它指向应用程序中的一个函数，在那个函数中对CTRL_C这个事件作出响应。但是，在实践中却发现，两次CTRL_C
+     事件往往过于密集，有时候刚刚进入第一个信号的处理程序，第二个SIGINT信号就到达了，而第二个信号的默认操作是杀死进程，这样，第一个信号
+     的处理程序根本没有执行完。为了避免这种情况的出现，就在执行一个信号处理程序的过程中将该种信号自动屏蔽掉。所谓“屏蔽”，与将信号忽略
+     是不同的，它只是将信号暂时“遮盖”一下，一旦屏蔽去掉，已到达的信号又继续得到处理。
+
+     所谓屏蔽, 并不是禁止递送信号, 而是暂时阻塞信号的递送,
+     解除屏蔽后, 信号将被递送, 不会丢失
+     */ 
+	// 设置这些信号都阻塞，等我们sigpending调用才告诉我有这些事件
     if (sigprocmask(SIG_BLOCK, &set, NULL) == -1) {
         ngx_log_error(NGX_LOG_ALERT, cycle->log, ngx_errno,
                       "sigprocmask() failed");
@@ -121,6 +147,7 @@ ngx_master_process_cycle(ngx_cycle_t *cycle)
         exit(2);
     }
 
+	 /* 把master process + 参数一起注入主进程名 */
     p = ngx_cpymem(title, master_process, sizeof(master_process) - 1);
     for (i = 0; i < ngx_argc; i++) {
         *p++ = ' ';
@@ -141,6 +168,7 @@ ngx_master_process_cycle(ngx_cycle_t *cycle)
     sigio = 0;
     live = 1;
 
+	//无限循环
     for ( ;; ) {
         if (delay) {
             if (ngx_sigalrm) {
@@ -373,6 +401,7 @@ ngx_start_worker_processes(ngx_cycle_t *cycle, ngx_int_t n, ngx_int_t type)
 
     for (i = 0; i < n; i++) {
 
+		//循环fork子进程,fork成功之后会调用ngx_worker_process_cycle函数
         ngx_spawn_process(cycle, ngx_worker_process_cycle,
                           (void *) (intptr_t) i, "worker process", type);
 
@@ -446,7 +475,7 @@ ngx_start_cache_manager_processes(ngx_cycle_t *cycle, ngx_uint_t respawn)
 /**
  * 向所有已经打开的channel(通过socketpair生成的句柄进行通信)发送ch信息
  * cycle 当前进程的ngx_cycle_t结构体
- * ch 将要想子进程发送的信息
+ * ch 将要向子进程发送的信息
  */
 static void
 ngx_pass_open_channel(ngx_cycle_t *cycle, ngx_channel_t *ch)
@@ -470,8 +499,10 @@ ngx_pass_open_channel(ngx_cycle_t *cycle, ngx_channel_t *ch)
 
         /* TODO: NGX_AGAIN */
 
+		//发送消息给其他的worker
+		//对于父进程而言，他知道所有进程的channel[0]， 直接可以向子进程发送命令。
         ngx_write_channel(ngx_processes[i].channel[0],
-                          ch, sizeof(ngx_channel_t), cycle->log);
+                          ch, sizeof(ngx_channel_t), cycle->log);//ch为本进程信息，ngx_processes[i].channel[0]为其他进程信息
     }
 }
 
@@ -769,8 +800,10 @@ ngx_worker_process_cycle(ngx_cycle_t *cycle, void *data)
 
     ngx_worker_process_init(cycle, worker);
 
+	//设置进程的名称，通过修改argv[0]的值来改变的
     ngx_setproctitle("worker process");
 
+	//子进程的无限循环等待
     for ( ;; ) {
 
         if (ngx_exiting) {

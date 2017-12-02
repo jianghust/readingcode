@@ -58,6 +58,7 @@ ngx_event_expire_timers(void)
 
     sentinel = ngx_event_timer_rbtree.sentinel;
 
+	//循环检测
     for ( ;; ) {
         root = ngx_event_timer_rbtree.root;
 
@@ -65,10 +66,12 @@ ngx_event_expire_timers(void)
             return;
         }
 
+		//找到最近的即将超时的超时事件对象
         node = ngx_rbtree_min(root, sentinel);
 
         /* node->key > ngx_current_msec */
 
+		//如果已经超时
         if ((ngx_msec_int_t) (node->key - ngx_current_msec) > 0) {
             return;
         }
@@ -79,6 +82,7 @@ ngx_event_expire_timers(void)
                        "event timer del: %d: %M",
                        ngx_event_ident(ev->data), ev->timer.key);
 
+		//从红黑树中移除这个已超时的超时事件对象
         ngx_rbtree_delete(&ngx_event_timer_rbtree, &ev->timer);
 
 #if (NGX_DEBUG)
@@ -87,10 +91,13 @@ ngx_event_expire_timers(void)
         ev->timer.parent = NULL;
 #endif
 
+		//标记：是否已加入红黑树超时管理
         ev->timer_set = 0;
 
+		 //标记：是否超时
         ev->timedout = 1;
 
+		//调用回调函数
         ev->handler(ev);
     }
 }

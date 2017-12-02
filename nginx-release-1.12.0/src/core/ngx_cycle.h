@@ -26,10 +26,16 @@ typedef struct ngx_shm_zone_s  ngx_shm_zone_t;
 
 typedef ngx_int_t (*ngx_shm_zone_init_pt) (ngx_shm_zone_t *zone, void *data);
 
+//在ngx_http_upstream_cache_get中获取zone的时候获取的是fastcgi_cache proxy_cache设置的zone，因此必须配置fastcgi_cache (proxy_cache) abc;中的xxx和xxx_cache_path(proxy_cache_path fastcgi_cache_path) xxx keys_zone=abc:10m;一致
+//所有的共享内存都通过ngx_http_file_cache_s->shpool进行管理   每个共享内存对应一个ngx_slab_pool_t来管理，见ngx_init_zone_pool
 struct ngx_shm_zone_s {
+	//指向ngx_http_file_cache_t，赋值见ngx_http_file_cache_set_slot
     void                     *data;
+	//ngx_init_cycle->ngx_shm_alloc->ngx_shm_alloc中创建相应的共享内存空间
     ngx_shm_t                 shm;
+	// "zone" proxy_cache_path fastcgi_cache_path等配置中设置为ngx_http_file_cache_init   ngx_http_upstream_init_zone
     ngx_shm_zone_init_pt      init;
+	 //创建的这个共享内存属于哪个模块
     void                     *tag;
     ngx_uint_t                noreuse;  /* unsigned  noreuse:1; */
 };
@@ -109,35 +115,49 @@ struct ngx_cycle_s {
 
 
 typedef struct {
+	//是否以daemon守护进程的方式工作,默认为1
     ngx_flag_t                daemon;
+	//通过参数"master_process"设置,是否以master/worker模式工作
     ngx_flag_t                master;
 
+	//从timer_resolution全局配置中解析到的参数,表示多少ms执行定时器中断，然后epoll_wail会返回更新内存时间
     ngx_msec_t                timer_resolution;
     ngx_msec_t                shutdown_timeout;
 
+	//创建的worker进程数，通过nginx配置，默认为1  "worker_processes"设置,最大不超过1024
     ngx_int_t                 worker_processes;
     ngx_int_t                 debug_points;
 
+	//修改工作进程的打开文件数的最大值限制(RLIMIT_NOFILE)，用于在不重启主进程的情况下增大该限制。
     ngx_int_t                 rlimit_nofile;
+	//修改工作进程的core文件尺寸的最大值限制(RLIMIT_CORE)，用于在不重启主进程的情况下增大该限制。
     off_t                     rlimit_core;
 
     int                       priority;
 
     ngx_uint_t                cpu_affinity_auto;
+	//worker_cpu_affinity参数个数
     ngx_uint_t                cpu_affinity_n;
+	//worker_cpu_affinity 00001 00010 00100 01000 10000;转换的位图结果就是0X11111
     ngx_cpuset_t             *cpu_affinity;
 
     char                     *username;
     ngx_uid_t                 user;
     ngx_gid_t                 group;
 
+	//working_directory /var/yyz/corefile/;  coredump存放路径
     ngx_str_t                 working_directory;
     ngx_str_t                 lock_file;
 
+	//默认NGX_PID_PATH，主进程名,存储路径和字符长度
     ngx_str_t                 pid;
+	//NGX_PID_PATH+NGX_OLDPID_EXT  热升级nginx进程的时候用
     ngx_str_t                 oldpid;
 
+	//数组第一个成员是TZ字符串
+	//成员类型ngx_str_t，见ngx_core_module_create_conf
     ngx_array_t               env;
+	//直接指向env，见ngx_set_environment
     char                    **environment;
 } ngx_core_conf_t;
 

@@ -1053,6 +1053,10 @@ ngx_close_listening_sockets(ngx_cycle_t *cycle)
 }
 
 
+/**
+ *
+ * 从连接池中获取一个ngx_connection_t结构体，同时获取对应的读写事件
+ **/
 ngx_connection_t *
 ngx_get_connection(ngx_socket_t s, ngx_log_t *log)
 {
@@ -1122,6 +1126,9 @@ ngx_get_connection(ngx_socket_t s, ngx_log_t *log)
 }
 
 
+/*
+ * 将这个连接回收到连接池中
+ * */
 void
 ngx_free_connection(ngx_connection_t *c)
 {

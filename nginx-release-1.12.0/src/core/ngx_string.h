@@ -14,7 +14,9 @@
 
 
 typedef struct {
+	//长度
     size_t      len;
+	//路径
     u_char     *data;
 } ngx_str_t;
 
