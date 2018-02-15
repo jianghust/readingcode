@@ -49,7 +49,7 @@ typedef u_char *(*ngx_http_log_handler_pt)(ngx_http_request_t *r,
 #endif
 
 
-struct ngx_http_log_ctx_s {
+struct ngx_http_log_ctx_s {//在ngx_http_init_connection中创建空间
     ngx_connection_t    *connection;
     ngx_http_request_t  *request;
     ngx_http_request_t  *current_request;
@@ -64,16 +64,31 @@ struct ngx_http_chunked_s {
 
 
 typedef struct {
-    ngx_uint_t           http_version;
-    ngx_uint_t           code;
-    ngx_uint_t           count;
+    ngx_uint_t           http_version;//http版本
+    ngx_uint_t           code;//http响应码
+    ngx_uint_t           count;//响应码数字位数，例如200，则为3
     u_char              *start;
     u_char              *end;
 } ngx_http_status_t;
 
+/*
+ngx_http_get_module_ctx和ngx_http_set_ctx这两个宏可以完成HTTP上下文的设置和
+使用。r的结构类型为ngx_http_request_t
 
+ngx_http_get_module ctx接受两个参数，其中第1个参数是ngx_http_request_t指针，
+第2个参数则是当前的HTTP模块对象。例如，在mytest模块中使用的就是在ngx_module_t类型的ngx_http_mytest_module结构体。ngx_http_get_module- ctx返回值
+就是某个HTTP模块的上下文结构体指针，如果这个HTTP模块没有设置过上下文，那么将
+会返回NULL空指针。因此，在任何一个HTTP模块中，都可以使用ngx_http_get_module_
+ctx获取所有HTTP模块为该请求创建的上下文结构体。
+*/
+//ngx_http_get_module_ctx存储运行过程中的各种状态(例如读取后端数据，可能需要多次读取)  ngx_http_get_module_loc_conf获取该模块在local{}中的配置信息
+//注意ngx_http_get_module_main_conf ngx_http_get_module_loc_conf和ngx_http_get_module_ctx的区别
 #define ngx_http_get_module_ctx(r, module)  (r)->ctx[module.ctx_index]
-#define ngx_http_set_ctx(r, c, module)      r->ctx[module.ctx_index] = c;
+/*
+ ngx_http_set ctx接受3个参数，其中第1个参数是ngx_http_request_t指针，第2个参
+数是准备设置的上下文结构体的指针，第3个参数则是HTTP模块对象。  参考4.5节
+*/ //注意和conf->ctx的区别，参考ngx_http_get_module_loc_conf
+#define ngx_http_set_ctx(r, c, module)      r->ctx[module.ctx_index] = c;//主要是http upstream相关的fastcgi proxy memcached等上下文
 
 
 ngx_int_t ngx_http_add_location(ngx_conf_t *cf, ngx_queue_t **locations,

@@ -32,7 +32,7 @@ ngx_daemon(ngx_log_t *log)
         ngx_log_error(NGX_LOG_EMERG, log, ngx_errno, "setsid() failed");
         return NGX_ERROR;
     }
-	//创建文件权限相关,0777 & mode,给后面的代码调用函数给出最大的权限
+	//创建文件权限相关,0777 & mode,默认不屏蔽任何权限,给后面的代码调用函数给出最大的权限
     umask(0);
 
     fd = open("/dev/null", O_RDWR);

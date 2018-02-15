@@ -31,7 +31,9 @@ static void ngx_unlock_mutexes(ngx_pid_t pid);
 
 
 int              ngx_argc;
+//存放执行nginx时候所带的参数
 char           **ngx_argv;
+//指向nginx运行时候所带的参数，见ngx_save_argv
 char           **ngx_os_argv;
 
 //当前操作的进程在nginx_process中的下标

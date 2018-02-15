@@ -89,10 +89,12 @@ typedef struct {
 } ngx_hash_keys_arrays_t;
 
 
+//给HTTP头部使用的，其中key存储头部名称（如Content-Length），value存储对应的值（如“1024），lowcase_key是为了忽略HTTP头部名称的大小写，hash用于快速检索头部
 typedef struct {
     ngx_uint_t        hash;
     ngx_str_t         key;
     ngx_str_t         value;
+	//全小写的key字符串
     u_char           *lowcase_key;
 } ngx_table_elt_t;
 

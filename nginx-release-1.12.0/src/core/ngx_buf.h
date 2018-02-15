@@ -17,12 +17,13 @@ typedef void *            ngx_buf_tag_t;
 
 typedef struct ngx_buf_s  ngx_buf_t;
 
+//处理大数据的关键数据结构，既用于内存数据也应用于磁盘数据,本质上它提供的仅仅是一些指针成员和标志位
 struct ngx_buf_s {
-	//处理内存告诉使用者，本次处理应该从pos位置开始处理数据
+	//处理内存告诉使用者，本次处理应该从pos位置开始处理数据,这样设置是由于同一个ngx_buf_t可能被多次反复处理。pos的含义是由使用它的模块定义的
     u_char          *pos;
-	//处理内存表示该buf的 有效数据到last为止
+	//处理内存表示该buf的有效数据到last为止,pos和last之间的内存是nginx希望处理的内容
     u_char          *last;
-	//处理文件时应该从该位置开始
+	//处理文件时应该从该位置开始,处理文件时，file_pos和file_last的含义与处理内存时的pos和last相同
     off_t            file_pos;
 	//处理文件时应该到此结束
     off_t            file_last;
@@ -75,6 +76,7 @@ struct ngx_buf_s {
 };
 
 
+//和ngx_buf_t配合使用的链表数据结构
 struct ngx_chain_s {
     ngx_buf_t    *buf;
     ngx_chain_t  *next;

@@ -19,9 +19,9 @@ static ngx_uint_t ngx_module_ctx_index(ngx_cycle_t *cycle, ngx_uint_t type,
 
 
 ngx_uint_t         ngx_max_module;
-static ngx_uint_t  ngx_modules_n;
+static ngx_uint_t  ngx_modules_n;//nginx模块的总个数
 
-
+//nginx模块预初始化(只是动态模块?)
 ngx_int_t
 ngx_preinit_modules(void)
 {
@@ -33,6 +33,7 @@ ngx_preinit_modules(void)
     }
 
     ngx_modules_n = i;
+	//动态模块没有算到总的模块数量中?
     ngx_max_module = ngx_modules_n + NGX_MAX_DYNAMIC_MODULES;
 
     return NGX_OK;

@@ -225,6 +225,7 @@ typedef struct {
     ngx_table_elt_t                  *date;
 #endif
 
+	/*user和passwd是只有ngx_http_auth_basic_module才会用到的成员*/
     ngx_str_t                         user;
     ngx_str_t                         passwd;
 

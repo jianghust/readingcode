@@ -75,8 +75,11 @@
 
 #endif
 
+//整形封装
 typedef intptr_t        ngx_int_t;
+//无符号整形封装
 typedef uintptr_t       ngx_uint_t;
+//整形指针 见 /usr/include/stdint.h中的定义
 typedef intptr_t        ngx_flag_t;
 
 

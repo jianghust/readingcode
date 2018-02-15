@@ -77,6 +77,7 @@ static char *ngx_http_client_errors[] = {
 };
 
 
+//把ngx_http_headers_in中的所有成员做hash运算，然后存放到cmcf->headers_in_hash中，见ngx_http_init_headers_in_hash
 ngx_http_header_t  ngx_http_headers_in[] = {
     { ngx_string("Host"), offsetof(ngx_http_headers_in_t, host),
                  ngx_http_process_host },
@@ -195,9 +196,11 @@ ngx_http_header_t  ngx_http_headers_in[] = {
 };
 
 
+//设置ngx_listening_t的handler，这个handler会在监听到客户端连接时被调用，具体就是在ngx_event_accept函数中，ngx_http_init_connection函数顾名思义，就是初始化这个新建的连接
 void
 ngx_http_init_connection(ngx_connection_t *c)
 {
+//当建立连接后开辟ngx_http_connection_t结构，这里面存储该服务器端ip:port所在server{}上下文配置信息，和server_name信息等，然后让ngx_connection_t->data指向该结构，这样就可以通过ngx_connection_t->data获取到服务器端的serv loc 等配置信息以及该server{}中的server_name信息
     ngx_uint_t              i;
     ngx_event_t            *rev;
     struct sockaddr_in     *sin;
@@ -210,12 +213,15 @@ ngx_http_init_connection(ngx_connection_t *c)
     ngx_http_in6_addr_t    *addr6;
 #endif
 
+	//注意ngx_connection_t和ngx_http_connection_t的区别，前者是建立连接accept前使用的结构，后者是连接成功后使用的结构
     hc = ngx_pcalloc(c->pool, sizeof(ngx_http_connection_t));
     if (hc == NULL) {
         ngx_http_close_connection(c);
         return;
     }
 
+
+    //在服务器端accept客户端连接成功(ngx_event_accept)后，会通过ngx_get_connection从连接池获取一个ngx_connection_t结构，也就是每个客户端连接对于一个ngx_connection_t结构，并且为其分配一个ngx_http_connection_t结构，ngx_connection_t->data = ngx_http_connection_t，见ngx_http_init_connection
     c->data = hc;
 
     /* find the server configuration for the address:port */
@@ -229,7 +235,7 @@ ngx_http_init_connection(ngx_connection_t *c)
          * is an "*:port" wildcard so getsockname() in ngx_http_server_addr()
          * is required to determine a server address
          */
-
+       //说明listen ip:port存在几条没有bind选项，并且存在通配符配置，如listen *:port,那么就需要通过ngx_connection_local_sockaddr来确定究竟客户端是和那个本地ip地址建立的连接
         if (ngx_connection_local_sockaddr(c, NULL, 0) != NGX_OK) {
             ngx_http_close_connection(c);
             return;
@@ -256,6 +262,7 @@ ngx_http_init_connection(ngx_connection_t *c)
             break;
 #endif
 
+		//默认ip v4
         default: /* AF_INET */
             sin = (struct sockaddr_in *) c->local_sockaddr;
 
@@ -263,12 +270,17 @@ ngx_http_init_connection(ngx_connection_t *c)
 
             /* the last address is "*" */
 
+            //根据上面的ngx_connection_local_sockaddr函数获取到客户端连接到本地，本地IP地址获取到后，遍历ngx_http_port_t找到对应的IP地址和端口，然后赋值给ngx_http_connection_t->addr_conf，这里面存储有server_name配置信息以及该ip:port对应的上下文信息
             for (i = 0; i < port->naddrs - 1; i++) {
                 if (addr[i].addr == sin->sin_addr.s_addr) {
                     break;
                 }
             }
 
+            /*
+                这里也体现了在ngx_http_init_connection中获取http{}上下文ctx，如果客户端请求中带有host参数，则会继续在ngx_http_set_virtual_server
+                中重新获取对应的server{}和location{}，如果客户端请求不带host头部行，则使用默认的server{},见 ngx_http_init_connection  
+            */
             hc->addr_conf = &addr[i].conf;
 
             break;
@@ -351,23 +363,37 @@ ngx_http_init_connection(ngx_connection_t *c)
         hc->proxy_protocol = 1;
         c->log->action = "reading PROXY protocol";
     }
-
+    /*
+     如果新连接的读事件ngx_event_t结构体中的标志位ready为1，实际上表示这个连接对应的套接字缓存上已经有用户发来的数据，
+     这时就可调用上面说过的ngx_http_init_request方法处理请求。
+     */
+    //这里只可能是当listen的时候添加了defered参数并且内核支持，在ngx_event_accept的时候才会置1，才可能执行下面的if里面的内容，否则不会只需if里面的内容
     if (rev->ready) {
         /* the deferred accept(), iocp */
 
+        //如果是配置了accept_mutex，则把该rev->handler延后处理，
+        //实际上执行的地方为ngx_process_events_and_timers中的ngx_event_process_posted
         if (ngx_use_accept_mutex) {
             ngx_post_event(rev, &ngx_posted_events);
             return;
         }
-
+        //ngx_http_wait_request_handler
         rev->handler(rev);
         return;
     }
-
-    ngx_add_timer(rev, c->listening->post_accept_timeout);
+    /*
+    在有些情况下，当TCP连接建立成功时同时也出现了可读事件（例如，在套接字listen配置时设置了deferred选项时，内核仅在套接字上确实收到请求时才会通知epoll
+    调度事件的回调方法。当然，在大部分情况下，ngx_http_init_request方法和
+    ngx_http_init_connection方法都是由两个事件（TCP连接建立成功事件和连接上的可读事件）触发调用的
+    */
+    /*
+    调用ngx_add_timer方法把读事件添加到定时器中，设置的超时时间则是nginx.conf中client_header_timeout配置项指定的参数。
+    也就是说，如果经过client_header_timeout时间后这个连接上还没有用户数据到达，则会由定时器触发调用读事件的ngx_http_init_request处理方法。
+    */
+    ngx_add_timer(rev, c->listening->post_accept_timeout);//把接收事件添加到定时器中，当post_accept_timeout秒还没有客户端数据到来，就关闭连接
     ngx_reusable_connection(c, 1);
 
-    if (ngx_handle_read_event(rev, 0) != NGX_OK) {
+    if (ngx_handle_read_event(rev, 0) != NGX_OK) {//当下次有数据从客户端发送过来的时候，会在ngx_epoll_process_events把对应的ready置1。
         ngx_http_close_connection(c);
         return;
     }
@@ -2828,7 +2854,11 @@ closed:
     ngx_http_finalize_request(r, NGX_HTTP_CLIENT_CLOSED_REQUEST);
 }
 
-
+/*
+ngx_http_set_keepalive方法将当前连接设为keepalive状态。它实际上会把表示请求的ngx_http_request_t结构体释放，却又不会调用
+ngx_http_close_connection方法关闭连接，同时也在检测keepalive连接是否超时，对于这个方法，此处不做详细解释
+*/
+//ngx_http_finalize_request -> ngx_http_finalize_connection ->ngx_http_set_keepalive
 static void
 ngx_http_set_keepalive(ngx_http_request_t *r)
 {

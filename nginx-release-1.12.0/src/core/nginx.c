@@ -39,7 +39,7 @@ static ngx_conf_enum_t  ngx_debug_points[] = {
 
 
 static ngx_command_t  ngx_core_commands[] = {
-
+	//master进程是否以守护进程的方式来运行,默认是on,非守护进程运行则shell退出的时候nginx也会退出
     { ngx_string("daemon"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_FLAG,
       ngx_conf_set_flag_slot,
@@ -74,7 +74,8 @@ static ngx_command_t  ngx_core_commands[] = {
       0,
       offsetof(ngx_core_conf_t, lock_file),
       NULL },
-
+	
+	//子进程数量
     { ngx_string("worker_processes"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_TAKE1,
       ngx_set_worker_processes,
@@ -96,6 +97,7 @@ static ngx_command_t  ngx_core_commands[] = {
       0,
       NULL },
 
+	//进程运行优先级
     { ngx_string("worker_priority"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_TAKE1,
       ngx_set_priority,
@@ -103,6 +105,7 @@ static ngx_command_t  ngx_core_commands[] = {
       0,
       NULL },
 
+	//CPU绑定
     { ngx_string("worker_cpu_affinity"),
       NGX_MAIN_CONF|NGX_DIRECT_CONF|NGX_CONF_1MORE,
       ngx_set_cpu_affinity,
@@ -279,6 +282,7 @@ main(int argc, char *const *argv)
         return 1;
     }
 
+	//处理记录配置路径相关的一些东西
     if (ngx_process_options(&init_cycle) != NGX_OK) {
         return 1;
     }
@@ -295,10 +299,12 @@ main(int argc, char *const *argv)
         return 1;
     }
 
+	//处理不重启服务升级nginx情况下一些socket相关的信息
     if (ngx_add_inherited_sockets(&init_cycle) != NGX_OK) {
         return 1;
     }
 
+	//初始化所有模块；并对所有模块进行编号处理,ngx_modules数却是在自动编译的时候生成的，位于objs/ngx_modules.c文件中
     if (ngx_preinit_modules() != NGX_OK) {
         return 1;
     }
@@ -344,6 +350,7 @@ main(int argc, char *const *argv)
         return ngx_signal_process(cycle, ngx_signal);
     }
 
+	//系统相关的日志记录
     ngx_os_status(cycle->log);
 
     ngx_cycle = cycle;
@@ -378,6 +385,7 @@ main(int argc, char *const *argv)
 
 #endif
 
+	//创建pid文件,用来进行相关进程通信
     if (ngx_create_pidfile(&ccf->pid, cycle->log) != NGX_OK) {
         return 1;
     }
@@ -396,9 +404,11 @@ main(int argc, char *const *argv)
     ngx_use_stderr = 0;
 
     if (ngx_process == NGX_PROCESS_SINGLE) {
+		//单进程模式运行
         ngx_single_process_cycle(cycle);
 
     } else {
+		//master,worker模式运行
         ngx_master_process_cycle(cycle);
     }
 
@@ -1520,6 +1530,7 @@ ngx_set_worker_processes(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 }
 
 
+//模块动态加载
 static char *
 ngx_load_module(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
@@ -1559,6 +1570,7 @@ ngx_load_module(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     cln->handler = ngx_unload_module;
     cln->data = handle;
 
+	//加载nginx模块列表
     modules = ngx_dlsym(handle, "ngx_modules");
     if (modules == NULL) {
         ngx_conf_log_error(NGX_LOG_EMERG, cf, 0,

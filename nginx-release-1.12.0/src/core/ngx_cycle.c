@@ -1219,6 +1219,7 @@ ngx_reopen_files(ngx_cycle_t *cycle, ngx_uid_t user)
 }
 
 
+//告诉nginx初始化1块大小为size，名称为name的slab共享内存
 ngx_shm_zone_t *
 ngx_shared_memory_add(ngx_conf_t *cf, ngx_str_t *name, size_t size, void *tag)
 {

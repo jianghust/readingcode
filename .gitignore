@@ -2,3 +2,4 @@ modules
 webserver
 nginx
 nginx-release-1.12.0/objs/
+.vscode
