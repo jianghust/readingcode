@@ -106,23 +106,23 @@ typedef struct {
 
 
 typedef enum {
-    NGX_HTTP_POST_READ_PHASE = 0,
+    NGX_HTTP_POST_READ_PHASE = 0,//在接收到完整的http头部后的处理阶段（模块包含：获取真实ip）
 
-    NGX_HTTP_SERVER_REWRITE_PHASE,
+    NGX_HTTP_SERVER_REWRITE_PHASE,//在将uri与location表达式匹配前，修改请求的uri(rewrite重定向)的阶段
 
-    NGX_HTTP_FIND_CONFIG_PHASE,
-    NGX_HTTP_REWRITE_PHASE,
-    NGX_HTTP_POST_REWRITE_PHASE,
+    NGX_HTTP_FIND_CONFIG_PHASE,//【仅框架】根据uri匹配location的阶段。一般只由ngx_http_core_module来实现
+    NGX_HTTP_REWRITE_PHASE,//匹配到location后，根据修改结果继续执行rewrite
+    NGX_HTTP_POST_REWRITE_PHASE,//【仅框架】执行rewrite后的处理。防止递归重定向导致死循环，一般只由ngx_http_core_module来实现
 
-    NGX_HTTP_PREACCESS_PHASE,
+    NGX_HTTP_PREACCESS_PHASE,//认证预处理   请求限制，连接限制（内存不足时返回204/444、限制连接数、限制请求数）
 
-    NGX_HTTP_ACCESS_PHASE,
-    NGX_HTTP_POST_ACCESS_PHASE,
+    NGX_HTTP_ACCESS_PHASE,//认证处理，判断是否允许请求访问ngx服务器(本机认证、第三方认证)
+    NGX_HTTP_POST_ACCESS_PHASE,//仅框架】认证后处理。当上阶段返回不允许访问的错误码，就在这里发送拒绝服务的错误相应
 
-    NGX_HTTP_TRY_FILES_PHASE,
-    NGX_HTTP_CONTENT_PHASE,
+    NGX_HTTP_TRY_FILES_PHASE,//【仅框架】尝试try配置项。http请求访问静态文件时，try_files配置项使请求顺序访问多个静态文件，失败了就继续下一个
+    NGX_HTTP_CONTENT_PHASE,//内容处理。大部分的http模块都会介入这个阶段（目录浏览功能、静态压缩、随机首页）
 
-    NGX_HTTP_LOG_PHASE
+    NGX_HTTP_LOG_PHASE//日志处理。如打上access_log日志
 } ngx_http_phases;
 
 typedef struct ngx_http_phase_handler_s  ngx_http_phase_handler_t;

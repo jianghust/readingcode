@@ -1867,7 +1867,10 @@ ngx_http_process_request_header(ngx_http_request_t *r)
     return NGX_OK;
 }
 
-
+/*
+ngx_http_process_request方法负责在接收完HTTP头部后，第一次与各个HTTP模块共同按阶段处理请求，而对于ngx_http_request_handler方法，如果ngx_http_process_request没能处理完请求，这个请求上的事件再次被触发，那就将由此方法继续处理了。
+*/
+//ngx_http_process_request_headers头部行解析完毕后调用函数ngx_http_process_request_header
 void
 ngx_http_process_request(ngx_http_request_t *r)
 {
@@ -1928,8 +1931,10 @@ ngx_http_process_request(ngx_http_request_t *r)
     }
 
 #endif
-
-    if (c->read->timer_set) {
+    /*
+    由于现在已经开始准备调用各HTTP模块处理请求了，因此不再存在接收HTTP请求头部超时的问题，那就需要从定时器中把当前连接的读事件移除了。检查读事件对应的timer_set标志位，力1时表示读事件已经添加到定时器中了，这时需要调用ngx_del_timer从定时器中移除读事件；
+     */
+    if (c->read->timer_set) {//ngx_http_read_request_header中读取不到数据的时候返回NGX_AGIN，会添加定时器和读事件表示继续等待客户端数据到来
         ngx_del_timer(c->read);
     }
 
@@ -1939,13 +1944,22 @@ ngx_http_process_request(ngx_http_request_t *r)
     (void) ngx_atomic_fetch_add(ngx_stat_writing, 1);
     r->stat_writing = 1;
 #endif
-
+    /*
+    从现在开始不会再需要接收HTTP请求行或者头部，所以需要重新设置当前连接读/写事件的回调方法。在这一步骤中，将同时把读事件、写事件的回调方法都设置为ngx_http_request_handler方法，请求的后续处理都是通过ngx_http_request_handler方法进行的。*/
     c->read->handler = ngx_http_request_handler;
     c->write->handler = ngx_http_request_handler;
+    /*
+    设置ngx_http_request_t结构体的read_event_handler方法gx_http_block_reading。当再次有读事件到来时，将会调用ngx_http_block_reading方法处理请求。而这里将它设置为ngx_http_block_reading方法，这个方法可认为不做任何事，它的意义在于，目前已经开始处理HTTP请求，除非某个HTTP模块重新设置了read_event_handler方法，否则任何读事件都将得不到处理，也可似认为读事件被阻塞了。
+    */
     r->read_event_handler = ngx_http_block_reading;
 
-    ngx_http_handler(r);
-
+    /* 
+    ngx_http_process_request和ngx_http_request_handler这两个方法的共通之处在于，它们都会先按阶段调用各个HTTP模块处理请求，再处理post请求 
+    */
+    ngx_http_handler(r);//这里面会执行ngx_http_core_run_phases,执行11个阶段
+    /*
+    HTTP框架无论是调用ngx_http_process_request方法（首次从业务上处理请求）还是ngx_http_request_handler方法（TCP连接上后续的事件触发时）处理请求，最后都有一个步骤，就是调用ngx_http_run_posted_requests方法处理post请求11个阶段执行完毕后，调用ngx_http_run_posted_requests方法执行post请求，这里一般都是对subrequest进行处理
+    */
     ngx_http_run_posted_requests(c);
 }
 

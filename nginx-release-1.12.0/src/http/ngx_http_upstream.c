@@ -514,6 +514,7 @@ ngx_http_upstream_init(ngx_http_request_t *r)
 #endif
 
     if (c->read->timer_set) {
+        //把读事件从定时器中溢出,一旦启动upstream机制，就不应该对客户端的读操作带有超时时间的处理，请求的主要触发事件将以与上游服务器的连接为主
         ngx_del_timer(c->read);
     }
 
@@ -650,7 +651,7 @@ ngx_http_upstream_init_request(ngx_http_request_t *r)
 
         ngx_memzero(u->state, sizeof(ngx_http_upstream_state_t));
     }
-
+    //向请求main成员指向的原始请求中的cleanup链表末尾添加一个新成员，请求结束的时候，会调用
     cln = ngx_http_cleanup_add(r, 0);
     if (cln == NULL) {
         ngx_http_finalize_request(r, NGX_HTTP_INTERNAL_SERVER_ERROR);
@@ -710,6 +711,7 @@ ngx_http_upstream_init_request(ngx_http_request_t *r)
                 return;
             }
 
+            //建立连接
             ngx_http_upstream_connect(r, u);
 
             return;
@@ -1222,10 +1224,13 @@ ngx_http_upstream_handler(ngx_event_t *ev)
     ngx_http_request_t   *r;
     ngx_http_upstream_t  *u;
 
+    //由事件的data成员取得ngx_connection_t连接，是nginx与上游服务器的连接
     c = ev->data;
     r = c->data;
 
+    //由请求的upstream成员取得表示upstream机制的ngx_http_upstream_t结构体
     u = r->upstream;
+    //客户端与nginx间的连接
     c = r->connection;
 
     ngx_http_set_log_request(c->log, r);
@@ -1239,9 +1244,11 @@ ngx_http_upstream_handler(ngx_event_t *ev)
     }
 
     if (ev->write) {
+        //当nginx与上游服务器间TCP连接的可写事件被触发时，upstream的write_event_handler方法会被调用
         u->write_event_handler(r, u);
 
     } else {
+        //当nginx与上游服务器间TCP连接的可读事件被触发时，upstream的read_event_handler方法会被调用
         u->read_event_handler(r, u);
     }
 
